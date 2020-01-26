@@ -1,14 +1,15 @@
 #include "tm1637.h"
+#include "utils.h"
 
 #define TM_GPIO_PORT    GPIOA
 #define TM_DIN_PIN  GPIO_PIN_2
 #define TM_CLK_PIN  GPIO_PIN_3
 
-#define tm_clk_0()  GPIO_WriteLow(TM_GPIO_PORT, TM_CLK_PIN)
-#define tm_clk_1()  GPIO_WriteHigh(TM_GPIO_PORT, TM_CLK_PIN)
-#define tm_din_0()  GPIO_WriteLow(TM_GPIO_PORT, TM_DIN_PIN)
-#define tm_din_1()  GPIO_WriteHigh(TM_GPIO_PORT, TM_DIN_PIN)
-#define tm_din_is_1()   GPIO_ReadInputPin(TM_GPIO_PORT, TM_DIN_PIN)
+#define tm_clk_0()  (TM_GPIO_PORT->ODR &= ~TM_CLK_PIN)
+#define tm_clk_1()  (TM_GPIO_PORT->ODR |= TM_CLK_PIN)
+#define tm_din_0()  (TM_GPIO_PORT->ODR &= ~TM_DIN_PIN)
+#define tm_din_1()  (TM_GPIO_PORT->ODR |= TM_DIN_PIN)
+#define tm_din_is_1()   (TM_GPIO_PORT->ODR & TM_DIN_PIN)
 
 /*
       A
@@ -46,40 +47,77 @@ enum {
     CLEAR,
 };
 
+static void tm1637_transmission_start(void);
+static void tm1637_transmission_handle_ack(void);
+static void tm1637_transmission_stop(void);
+static void tm1637_write_byte(uint8_t);
+
+
 void tm1637_setup(void)
 {
-    GPIO_Init(TM_GPIO_PORT, TM_DIN_PIN, GPIO_MODE_OUT_OD_HIZ_FAST);
-    GPIO_Init(TM_GPIO_PORT, TM_CLK_PIN, GPIO_MODE_OUT_OD_HIZ_FAST);
+    TM_GPIO_PORT->DDR |= TM_CLK_PIN | TM_DIN_PIN;
+    TM_GPIO_PORT->ODR |= TM_CLK_PIN | TM_DIN_PIN;
+}
+
+void tm1637_display(int16_t number, bool dots)
+{
+    tm1637_transmission_start();
+    tm1637_write_byte(0x40);  // автосдвиг курсора
+    tm1637_transmission_stop();
+
+    tm1637_transmission_start();
+    tm1637_write_byte(0xC0);  // адрес 1-го сегмента
+    if (number < 0) {
+        tm1637_write_byte(tm_font[MINUS]);
+        number = -number;
+    }
+    else {
+        tm1637_write_byte(tm_font[number / 1000]);
+    }
+    number %= 1000;
+    tm1637_write_byte(tm_font[number / 100] | dots << 7);
+    number %= 100;
+    tm1637_write_byte(tm_font[number / 10]);
+    number %= 10;
+    tm1637_write_byte(tm_font[number]);
+    tm1637_transmission_stop();
+}
+
+void tm1637_set_displaying(bool displaying)
+{
+    tm1637_transmission_start();
+    tm1637_write_byte(0x80 | TM_BRIGHTNESSS | ((uint8_t) displaying << 3));
+    tm1637_transmission_stop();
 }
 
 static void tm1637_transmission_start(void)
 {
     tm_clk_1();
     tm_din_1();
-    delay_us(2);
+    delay_ms(1);
     tm_din_0();
 }
 
 static void tm1637_transmission_handle_ack(void)
 {
     tm_clk_0();
-    delay_us(5);
+    delay_ms(1);
     tm_din_0();
     while (tm_din_is_1());
     tm_din_1();
     tm_clk_1();
-    delay_us(2);
+    delay_ms(1);
     tm_clk_0();
 }
 
 static void tm1637_transmission_stop(void)
 {
     tm_clk_0();
-    delay_us(2);
+    delay_ms(1);
     tm_din_0();
-    delay_us(2);
+    delay_ms(1);
     tm_clk_1();
-    delay_us(2);
+    delay_ms(1);
     tm_din_1();
 }
 
@@ -93,41 +131,9 @@ static void tm1637_write_byte(uint8_t data)
         else
             tm_din_0();
         data >>= 1;
-        delay_us(3);
+        delay_ms(1);
         tm_clk_1();
-        delay_us(3);
+        delay_ms(1);
     }
     tm1637_transmission_handle_ack();
-}
-
-void tm1637_display(int16_t number)
-{
-    uint8_t i;
-    tm1637_transmission_start();
-    tm1637_write_byte(0x40);  // автосдвиг курсора
-    tm1637_transmission_stop();
-
-    tm1637_transmission_start();
-    tm1637_write_byte(0xC0);  // адрес 1-го сегмента
-    if (number < 0) {
-        tm1637_write_byte(tm_font[MINUS]);
-        number = -number
-    }
-    else {
-        tm1637_write_byte(tm_font[number / 1000]);
-    }
-    number %= 1000;
-    tm1637_write_byte(tm_font[number / 100]);
-    number %= 100;
-    tm1637_write_byte(tm_font[number / 10]);
-    number %= 10;
-    tm1637_write_byte(tm_font[number]);
-    tm1637_transmission_stop();
-}
-
-void tm1637_set_displaying(bool displaying)
-{
-    tm1637_transmission_start();
-    tm1637_write_byte(0x80 | TM_BRIGHTNESSS | ((uint8_t) displaying << 3));
-    tm1637_transmission_stop();
 }

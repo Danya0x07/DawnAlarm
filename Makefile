@@ -15,10 +15,12 @@ STATICLIBS = -lstdperiphdriver_stm8s103_osize.lib
 
 SOURCES = \
  code/main.c \
- code/utils.c
+ code/utils.c \
+ code/tm1637.c
 
 HEADERS = \
- code/include/utils.h
+ code/include/utils.h \
+ code/include/tm1637.h
 
 OUTPUT_DIR = ./build
 OBJ_FILES = $(addprefix $(OUTPUT_DIR)/, $(notdir $(SOURCES:.c=.rel)))
