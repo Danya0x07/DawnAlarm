@@ -12,11 +12,11 @@ void setup(void)
     TIM2_DeInit();
 
     // TIM4 для функций задержки
-    TIM4_DeInit();
-    TIM4_TimeBaseInit(TIM4_PRESCALER_16, 124);
-    TIM4_ClearFlag(TIM4_FLAG_UPDATE);
-    TIM4_ITConfig(TIM4_IT_UPDATE, ENABLE);
-    TIM4_Cmd(ENABLE);
+    TIM4->PSCR = TIM4_PRESCALER_16;
+    TIM4->ARR = 124;
+    TIM4->SR1 = ~TIM4_FLAG_UPDATE;
+    TIM4->IER |= TIM4_IT_UPDATE;
+    TIM4->CR1 |= TIM4_CR1_CEN;
 
     enableInterrupts();
 }
