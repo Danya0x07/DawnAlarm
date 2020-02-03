@@ -11,5 +11,5 @@ void delay_ms(uint16_t us)
 void __delay_irq_handler(void) __interrupt(23)
 {
     time++;
-    TIM4->SR1 = ~TIM4_IT_UPDATE;
+    TIM4->SR1 = (uint8_t) ~TIM4_IT_UPDATE;
 }

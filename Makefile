@@ -20,7 +20,8 @@ SOURCES = \
 
 HEADERS = \
  code/include/utils.h \
- code/include/tm1637.h
+ code/include/tm1637.h \
+ code/include/rgbtape.h
 
 OUTPUT_DIR = ./build
 OBJ_FILES = $(addprefix $(OUTPUT_DIR)/, $(notdir $(SOURCES:.c=.rel)))
@@ -49,7 +50,11 @@ prog: all
 uart:
 	gtkterm --port /dev/ttyUSB0 --speed 9600
 
-dbg:
+optionbytes:
+	echo "00 00 ff 01 fe 00 ff 00 ff 00 ff" | xxd -r -p > option_bytes.bin
+	stm8flash -c stlinkv2 -p $(MCU) -s opt -w option_bytes.bin
+
+mkfdbg:
 	echo $(OBJ_FILES)
 	echo $(SOURCES)
 	echo $(HEADERS)

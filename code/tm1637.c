@@ -67,6 +67,11 @@ void tm1637_display(int16_t number, bool dots)
 
     tm1637_transmission_start();
     tm1637_write_byte(0xC0);  // адрес 1-го сегмента
+    if (number > 9999)
+        number = 9999;
+    else if (number < -999)
+        number = -999;
+
     if (number < 0) {
         tm1637_write_byte(tm_font[MINUS]);
         number = -number;
