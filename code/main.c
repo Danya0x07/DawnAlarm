@@ -1,12 +1,17 @@
 #include <stm8s.h>
 #include "tm1637.h"
 #include "utils.h"
+#include "input.h"
 
 void setup(void)
 {
 
     I2C_DeInit();
-    //ADC1_DeInit();
+    // ADC1 для считывания положения потенциометра
+    ADC1->CR1 |= ADC1_PRESSEL_FCPU_D6;
+    ADC1->CR2 |= ADC1_ALIGN_RIGHT;
+    ADC1->CSR |= ADC1_CHANNEL_4;
+    ADC1->CR1 |= ADC1_CR1_ADON;
     //TIM2_DeInit();
 
     // TIM1 для RGB-ленты
@@ -31,21 +36,24 @@ void setup(void)
 
 int main(void)
 {
-    int16_t number = 0;
-    bool dots = 0;
+    uint16_t scale = 24;
     setup();
 
-    //GPIO_Init(GPIOB, GPIO_PIN_5, GPIO_MODE_OUT_PP_LOW_FAST);
     GPIOB->DDR |= GPIO_PIN_5;
     GPIOB->CR1 |= GPIO_PIN_5;
     GPIOB->ODR |= GPIO_PIN_5;
 
+    input_setup();
     tm1637_setup();
     tm1637_set_displaying(1);
 
     while (1) {
-        GPIOB->ODR ^= GPIO_PIN_5;
-        tm1637_display(number++, dots = !dots);
-        delay_ms(500);
+        if (btn_pressed()) {
+            uint16_t value;
+            scale = scale == 24 ? 60 : 24;
+            value = potentiometer_get(scale);
+            tm1637_display(value, 0);
+            GPIOB->ODR ^= GPIO_PIN_5;
+        }
     }
 }
