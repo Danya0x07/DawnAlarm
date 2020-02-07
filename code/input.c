@@ -1,8 +1,7 @@
 #include "input.h"
 #include "utils.h"
 
-#define ADC_CALIBRATION_VAL (15)
-
+// Подтяжка кнопки
 typedef enum {PULLDOWN, PULLUP = !PULLDOWN} ButtonMode;
 
 struct button {
@@ -60,7 +59,7 @@ uint16_t potentiometer_get(uint16_t scale)
     while (!(ADC1->CSR & ADC1_FLAG_EOC));
     adc_value = ADC1->DRL;
     adc_value |= ADC1->DRH << 8;
-    if (adc_value > 500)
-        adc_value -= ADC_CALIBRATION_VAL;
+    if (adc_value > 500)  // небольшая корректировка значения, чтобы не вылезало
+        adc_value -= 15;  // за рамки (scale).
     return  (uint32_t)adc_value * scale / 1023;
 }

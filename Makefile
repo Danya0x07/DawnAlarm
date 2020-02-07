@@ -17,13 +17,15 @@ SOURCES = \
  code/main.c \
  code/utils.c \
  code/tm1637.c \
- code/input.c
+ code/input.c \
+ code/ds1307.c
 
 HEADERS = \
  code/include/utils.h \
  code/include/tm1637.h \
  code/include/rgbtape.h \
- code/include/input.h
+ code/include/input.h \
+ code/include/ds1307.h
 
 OUTPUT_DIR = ./build
 OBJ_FILES = $(addprefix $(OUTPUT_DIR)/, $(notdir $(SOURCES:.c=.rel)))

@@ -21,37 +21,44 @@
       D
 */
 const uint8_t tm_font[] = {
-    // XGFEDCBA
-    0x3f,    // 0 0b00111111
-    0x06,    // 1 0b00000110
-    0x5b,    // 2 0b01011011
-    0x4f,    // 3 0b01001111
-    0x66,    // 4 0b01100110
-    0x6d,    // 5 0b01101101
-    0x7d,    // 6 0b01111101
-    0x07,    // 7 0b00000111
-    0x7f,    // 8 0b01111111
-    0x6f,    // 9 0b01101111
-    0x77,    // A 0b01110111
-    0x7c,    // b 0b01111100
-    0x39,    // C 0b00111001
-    0x5e,    // d 0b01011110
-    0x79,    // E 0b01111001
-    0x71,    // F 0b01110001
-    0x40,    // - 0b01000000
-    0x00     // пустота 0b00000000
+//    XGFEDCBA
+    0b00111111  // 0
+    0b00000110  // 1
+    0b01011011  // 2
+    0b01001111  // 3
+    0b01100110  // 4
+    0b01101101  // 5
+    0b01111101  // 6
+    0b00000111  // 7
+    0b01111111  // 8
+    0b01101111  // 9
+    0b01110111  // A
+    0b01111100  // b
+    0b00111001  // C
+    0b01011110  // d
+    0b01111001  // E
+    0b01110001  // F
+    0b01000000  // -
+    0b00000000  // пустота
 };
 
 enum {
     MINUS = 16,
     CLEAR,
+    // TODO: дополнить специфичными символами;
 };
 
+/* Программная реализация китайского недо-I2C протокола, по которому работают
+ * эти модули. Поскольку наш МК настроен на 2 МГц, микросекундная задержка
+ * оказалась слишком запарна для реализации, и было решено возложить болт
+ * на тайминги в 2-3 мкс и заменить их на задежрку в 1 мс. Костыльно, но
+ * в нашем случае не критично. При повторном использовании этой библиотеки
+ * стоит заменить задержки на микросекундные, если необходимо.
+ */
 static void tm1637_transmission_start(void);
-static void tm1637_transmission_handle_ack(void);
 static void tm1637_transmission_stop(void);
 static void tm1637_write_byte(uint8_t);
-
+static inline void tm1637_transmission_handle_ack(void);
 
 void tm1637_setup(void)
 {
@@ -103,18 +110,6 @@ static void tm1637_transmission_start(void)
     tm_din_0();
 }
 
-static void tm1637_transmission_handle_ack(void)
-{
-    tm_clk_0();
-    delay_ms(1);
-    tm_din_0();
-    while (tm_din_is_1());
-    tm_din_1();
-    tm_clk_1();
-    delay_ms(1);
-    tm_clk_0();
-}
-
 static void tm1637_transmission_stop(void)
 {
     tm_clk_0();
@@ -141,4 +136,16 @@ static void tm1637_write_byte(uint8_t data)
         delay_ms(1);
     }
     tm1637_transmission_handle_ack();
+}
+
+static inline void tm1637_transmission_handle_ack(void)
+{
+    tm_clk_0();
+    delay_ms(1);
+    tm_din_0();
+    while (tm_din_is_1());
+    tm_din_1();
+    tm_clk_1();
+    delay_ms(1);
+    tm_clk_0();
 }
