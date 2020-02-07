@@ -3,6 +3,7 @@
 #include "utils.h"
 #include "input.h"
 #include "ds1307.h"
+#include "eeprom.h"
 
 void setup(void)
 {
@@ -38,15 +39,21 @@ void setup(void)
 
 int main(void)
 {
+    static struct options opts;
+
     setup();
     input_setup();
     tm1637_setup();
     tm1637_set_displaying(1);
-    ds1307_setup(1234);
+    //ds1307_setup(1234);
     tm1637_display(0, 1);
     while (1) {
         if (btn_pressed()) {
-            tm1637_display(ds1307_get_time(), 0);
+            eeprom_load(&opts);
+            //opts.alarm_time = 8888;
+            tm1637_display(opts.alarm_time, 0);
+            //eeprom_save(&opts);
+            tm1637_display(opts.alarm_time, 1);
         }
     }
 }
