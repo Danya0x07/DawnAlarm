@@ -42,31 +42,24 @@ const uint8_t tm_font[] = {
     0b00000000,  // пустота
 };
 
-enum {
-    MINUS = 16,
-    CLEAR,
-    // TODO: дополнить специфичными символами;
-};
-
 /* Программная реализация китайского недо-I2C протокола, по которому работают
  * эти модули. Поскольку наш МК настроен на 2 МГц, микросекундная задержка
- * оказалась слишком запарна для реализации, и было решено возложить болт
+ * оказалась слишком запарна для реализации, и было решено забить
  * на тайминги в 2-3 мкс и заменить их на задежрку в 1 мс. Костыльно, но
  * в нашем случае не критично. При повторном использовании этой библиотеки
- * стоит заменить задержки на микросекундные, если необходимо.
- */
+ * стоит заменить задержки на микросекундные, если необходимо. */
 static void tm1637_transmission_start(void);
 static void tm1637_transmission_stop(void);
 static void tm1637_write_byte(uint8_t);
 static inline void tm1637_transmission_handle_ack(void);
 
-void tm1637_setup(void)
+void tm1637_gpio_setup(void)
 {
     TM_GPIO_PORT->DDR |= TM_CLK_PIN | TM_DIN_PIN;
     TM_GPIO_PORT->ODR |= TM_CLK_PIN | TM_DIN_PIN;
 }
 
-void tm1637_display(int16_t number, bool dots)
+void tm1637_display_dec(int16_t number, bool dots)
 {
     tm1637_transmission_start();
     tm1637_write_byte(0x40);  // автосдвиг курсора
@@ -80,7 +73,7 @@ void tm1637_display(int16_t number, bool dots)
         number = -999;
 
     if (number < 0) {
-        tm1637_write_byte(tm_font[MINUS]);
+        tm1637_write_byte(tm_font[TM_MINUS]);
         number = -number;
     }
     else {
@@ -92,6 +85,21 @@ void tm1637_display(int16_t number, bool dots)
     tm1637_write_byte(tm_font[number / 10]);
     number %= 10;
     tm1637_write_byte(tm_font[number]);
+    tm1637_transmission_stop();
+}
+
+void tm1637_display_char(enum tm_charset ch[4], bool dots)
+{
+    uint8_t i;
+    tm1637_transmission_start();
+    tm1637_write_byte(0x40);  // автосдвиг курсора
+    tm1637_transmission_stop();
+    tm1637_transmission_start();
+    tm1637_write_byte(0xC0);  // адрес 1-го сегмента
+    for (i = 0; i < 4; i++) {
+        if (ch[i] > sizeof(tm_font) - 1) ch[i] = TM_b;  // b от слова big
+        tm1637_write_byte(tm_font[ch[i]] | (i == 1 ? (dots << 7) : 0));
+    }
     tm1637_transmission_stop();
 }
 

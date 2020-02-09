@@ -6,10 +6,19 @@
 /* Яркость сегментов [0; 7]. */
 #define TM_BRIGHTNESSS  7
 
-void tm1637_setup(void);
+enum tm_charset {
+    TM_0, TM_1, TM_2, TM_3, TM_4, TM_5, TM_6, TM_7,
+    TM_8, TM_9, TM_A, TM_b, TM_C, TM_d, TM_E, TM_F,
+    TM_MINUS, TM_CLEAR,
+};
+
+void tm1637_gpio_setup(void);
 /* Отображает десятичное число number [-999; 9999] на дисплее,
  * dots == 1: отображать двоеточие, 0: не отображать. */
-void tm1637_display(int16_t number, bool dots);
+void tm1637_display_dec(int16_t number, bool dots);
+/* Отображает последовательность из 4х символов tm_charset,
+ * dots == 1: отображать двоеточие, 0: не отображать. */
+void tm1637_display_char(enum tm_charset ch[4], bool dots);
 /* Переключает состояние дисплея,
  * displaying == 1: сегменты светятся, 0: не светятся. */
 void tm1637_set_displaying(bool displaying);
