@@ -38,7 +38,7 @@ bool btn_pressed(void)
 bool btn_pressed_again(void)
 {
     uint16_t i;
-    for (i = 0; i < 500; i++) {
+    for (i = 0; i < 370; i++) {
         delay_ms(1);
         if (btn_pressed()) {
             return TRUE;

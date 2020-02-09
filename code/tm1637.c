@@ -38,7 +38,15 @@ const uint8_t tm_font[] = {
     0b01011110,  // d
     0b01111001,  // E
     0b01110001,  // F
+    0b01110110,  // H
+    0b00110000,  // I
+    0b00111000,  // L
+    0b01110011,  // P
+    0b01100111,  // q
+    0b00110001,  // r
+    0b00111110,  // U
     0b01000000,  // -
+    0b00001000,  // _
     0b00000000,  // пустота
 };
 
@@ -88,7 +96,7 @@ void tm1637_display_dec(int16_t number, bool dots)
     tm1637_transmission_stop();
 }
 
-void tm1637_display_char(enum tm_charset ch[4], bool dots)
+void tm1637_display_char(const enum tm_charset ch[4], bool dots)
 {
     uint8_t i;
     tm1637_transmission_start();
@@ -96,10 +104,8 @@ void tm1637_display_char(enum tm_charset ch[4], bool dots)
     tm1637_transmission_stop();
     tm1637_transmission_start();
     tm1637_write_byte(0xC0);  // адрес 1-го сегмента
-    for (i = 0; i < 4; i++) {
-        if (ch[i] > sizeof(tm_font) - 1) ch[i] = TM_b;  // b от слова big
-        tm1637_write_byte(tm_font[ch[i]] | (i == 1 ? (dots << 7) : 0));
-    }
+    for (i = 0; i < 4; i++)
+        tm1637_write_byte(tm_font[ch[i]] | dots << 7);
     tm1637_transmission_stop();
 }
 

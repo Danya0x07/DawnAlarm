@@ -11,6 +11,6 @@ void ds1307_setup(uint16_t start_time);
 uint16_t ds1307_get_time(void);
 void ds1307_set_time(uint16_t);
 
-#define ds1307_sq_is_1()    ((GPIOC->IDR & GPIO_PIN_3) != 0)
+#define ds1307_sqwout_is_1()    ((GPIOC->IDR & GPIO_PIN_3) != 0)  // SQW/OUT
 
 #endif
