@@ -1,13 +1,15 @@
 #include "input.h"
 #include "utils.h"
 
-// Подтяжка кнопки
-typedef enum {PULLDOWN, PULLUP = !PULLDOWN} ButtonMode;
+#define DOUBLECLICK_SCAN_DURATION   370
+#define ADC_CALIBRATION_VAL 15
+
+enum btn_pull {PULLDOWN, PULLUP};
 
 struct button {
     GPIO_TypeDef* reg;
     uint8_t pin;
-    ButtonMode mode;
+    enum btn_pull pull;
     bool last_state;
 } btn;
 
@@ -15,7 +17,7 @@ void input_setup(void)
 {
     btn.reg = GPIOA;
     btn.pin = GPIO_PIN_1;
-    btn.mode = PULLDOWN;
+    btn.pull = PULLDOWN;
 }
 
 bool btn_pressed(void)
@@ -29,8 +31,8 @@ bool btn_pressed(void)
         return FALSE;
     }
 
-    if (!btn.last_state && current_state) pressed = !(bool)btn.mode;
-    else if (btn.last_state && !current_state) pressed = (bool)btn.mode;
+    if (!btn.last_state && current_state) pressed = !(bool)btn.pull;
+    else if (btn.last_state && !current_state) pressed = (bool)btn.pull;
     btn.last_state = current_state;
     return pressed;
 }
@@ -38,7 +40,7 @@ bool btn_pressed(void)
 bool btn_pressed_again(void)
 {
     uint16_t i;
-    for (i = 0; i < 370; i++) {
+    for (i = 0; i < DOUBLECLICK_SCAN_DURATION; i++) {
         delay_ms(1);
         if (btn_pressed()) {
             return TRUE;
@@ -49,17 +51,20 @@ bool btn_pressed_again(void)
 
 bool btn_is_pressed(void)
 {
-    return (btn.reg->IDR & btn.pin) != btn.mode;
+    return (btn.reg->IDR & btn.pin) != btn.pull;
 }
 
 uint16_t potentiometer_get(uint16_t scale)
 {
     uint16_t adc_value;
+    uint32_t result;
     ADC1->CR1 |= ADC1_CR1_ADON;
     while (!(ADC1->CSR & ADC1_FLAG_EOC));
     adc_value = ADC1->DRL;
     adc_value |= ADC1->DRH << 8;
-    if (adc_value > 500)  // небольшая корректировка значения, чтобы не вылезало
-        adc_value -= 15;  // за рамки (scale).
-    return  (uint32_t)adc_value * scale / 1023;
+    if (adc_value > 500)  // небольшая корректировка значения.
+        adc_value -= ADC_CALIBRATION_VAL;
+    result = adc_value * scale / 1023;
+    if (result > scale) result = scale;
+    return result;
 }

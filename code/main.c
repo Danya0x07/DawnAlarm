@@ -6,9 +6,6 @@
 #include "eeprom.h"
 
 
-static const enum tm_charset msg_clock_setup[4] = {TM_C, TM_L, TM_0, TM_C};
-static const enum tm_charset msg_alarm_setup[4] = {TM_A, TM_L, TM_A, TM_r};
-
 void setup(void);
 static void take_user_time(uint16_t* current_time, bool dots);
 static void take_user_dawn_duration(uint8_t* dawn_duration);
@@ -16,38 +13,43 @@ static void update_dots(uint16_t current_time);
 
 int main(void)
 {
+    static const enum tm_charset msg_clock_setup[4] = {TM_C, TM_L, TM_0, TM_C};
+    static const enum tm_charset msg_alarm_setup[4] = {TM_A, TM_L, TM_A, TM_r};
     static struct options opts;
-    bool disp_active = 1;
+    bool disp_active = TRUE;
     uint16_t current_time;
 
     setup();
     input_setup();
     tm1637_gpio_setup();
-    tm1637_set_displaying(1);
+    tm1637_set_displaying(disp_active);
     eeprom_load(&opts);
     current_time = ds1307_get_time();
 
+    // Кнопка зажата во время подачи питания - установка времени
     if (btn_is_pressed()) {
-        tm1637_display_char(msg_clock_setup, FALSE);
+        tm1637_display_chars(msg_clock_setup, FALSE);
         while (btn_is_pressed());
-        take_user_time(&current_time, 0);
+        take_user_time(&current_time, FALSE);
         ds1307_set_time(current_time);
     }
 
     while (1) {
         if (btn_pressed()) {
-            if (btn_pressed_again()) {
-                tm1637_display_char(msg_alarm_setup, FALSE);
+            if (btn_pressed_again()) {  // Двукратное нажатие - настройка будильника.
+                tm1637_set_displaying(TRUE);
+                tm1637_display_chars(msg_alarm_setup, FALSE);
                 delay_ms(1000);
                 while (btn_is_pressed());
                 take_user_time(&opts.alarm_time, TRUE);
                 take_user_dawn_duration(&opts.dawn_duration);
                 eeprom_save(&opts);
-            } else {
+            } else {  // Однократное нажатие - вкл/выкл дисплей.
                 disp_active = !disp_active;
                 tm1637_set_displaying(disp_active);
             }
         }
+        // Переключение состояния двоеточия на дисплее раз в секунду.
         update_dots(current_time);
     }
 }
@@ -89,7 +91,7 @@ static void take_user_time(uint16_t* current_time, bool dots)
     uint8_t hours = *current_time / 100;
     uint8_t minutes = *current_time % 100;
     uint8_t _hours = 0, _minutes = 0;
-    while (!btn_pressed()) {
+    while (!btn_pressed()) {  // установка часов
         hours = potentiometer_get(24);
         if (hours != _hours) {
             tm1637_display_dec(hours * 100 + minutes, dots);
@@ -97,7 +99,7 @@ static void take_user_time(uint16_t* current_time, bool dots)
         }
         delay_ms(10);
     }
-    while (!btn_pressed()) {
+    while (!btn_pressed()) {  // установка минут
         minutes = potentiometer_get(60);
         if (minutes != _minutes) {
             tm1637_display_dec(hours * 100 + minutes, dots);
@@ -117,7 +119,7 @@ static void take_user_dawn_duration(uint8_t* dawn_duration)
         if (*dawn_duration != _dawn_duration) {
             digits[2] = *dawn_duration / 10;
             digits[3] = *dawn_duration % 10;
-            tm1637_display_char(digits, FALSE);
+            tm1637_display_chars(digits, FALSE);
             _dawn_duration = *dawn_duration;
         }
         delay_ms(10);
@@ -127,12 +129,13 @@ static void take_user_dawn_duration(uint8_t* dawn_duration)
 static void update_dots(uint16_t current_time)
 {
     static uint8_t pulse_counter = 0;
-    static bool dots = 0, _sq_state = 0;
+    static bool dots = FALSE, _sq_state = FALSE;
 
     bool sq_state = ds1307_sqwout_is_1();
     if (sq_state != _sq_state) {
         pulse_counter++;
-        if (pulse_counter % 2 == 0)
+        // Состояние пина SQW/OUT меняется 2 раза в секунду,
+        if (pulse_counter % 2 == 0)  // а мы переключаем двоеточие раз в секунду.
             tm1637_display_dec(current_time, dots = !dots);
         _sq_state = sq_state;
     }

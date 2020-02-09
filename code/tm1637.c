@@ -96,7 +96,7 @@ void tm1637_display_dec(int16_t number, bool dots)
     tm1637_transmission_stop();
 }
 
-void tm1637_display_char(const enum tm_charset ch[4], bool dots)
+void tm1637_display_chars(const enum tm_charset ch[4], bool dots)
 {
     uint8_t i;
     tm1637_transmission_start();
