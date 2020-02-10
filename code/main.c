@@ -9,7 +9,7 @@
 void setup(void);
 static void take_user_time(uint16_t* current_time, bool dots);
 static void take_user_dawn_duration(uint8_t* dawn_duration);
-static void update_dots(uint16_t current_time);
+static void update_time(uint16_t* current_time);
 
 int main(void)
 {
@@ -45,13 +45,15 @@ int main(void)
                 take_user_time(&opts.alarm_time, TRUE);
                 take_user_dawn_duration(&opts.dawn_duration);
                 eeprom_save(&opts);
+                // если долго настраивали будильник, не помешает обновить текущее время.
+                current_time = ds1307_get_time();
             } else {  // Однократное нажатие - вкл/выкл дисплей.
                 disp_active = !disp_active;
                 tm1637_set_displaying(disp_active);
             }
         }
         // Переключение состояния двоеточия на дисплее раз в секунду.
-        update_dots(current_time);
+        update_time(&current_time);
     }
 }
 
@@ -137,7 +139,7 @@ static void take_user_dawn_duration(uint8_t* dawn_duration)
     }
 }
 
-static void update_dots(uint16_t current_time)
+static void update_time(uint16_t* current_time)
 {
     static uint8_t pulse_counter = 0;
     static bool dots = FALSE, _sq_state = FALSE;
@@ -147,7 +149,11 @@ static void update_dots(uint16_t current_time)
         pulse_counter++;
         // Состояние пина SQW/OUT меняется 2 раза в секунду,
         if (pulse_counter % 2 == 0)  // а мы переключаем двоеточие раз в секунду.
-            tm1637_display_dec(current_time, dots = !dots);
+            tm1637_display_dec(*current_time, dots = !dots);
+        if (pulse_counter / 2 > 15) {  // Раз в 15 секунд обновляем время
+            *current_time = ds1307_get_time();
+            pulse_counter = 0;
+        }
         _sq_state = sq_state;
     }
 }
