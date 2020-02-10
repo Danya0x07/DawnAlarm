@@ -36,7 +36,7 @@ void ds1307_setup(uint16_t start_time)
 
 uint16_t ds1307_get_time(void)
 {
-    uint8_t current_time[2];
+    uint8_t current_time[2] = {0};
     uint8_t mem_address = 0x01;
     i2c_set_mem_ptr(DS1307_ADDRESS, &mem_address, sizeof(mem_address));
     i2c_mem_read(DS1307_ADDRESS, current_time, sizeof(current_time));

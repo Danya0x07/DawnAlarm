@@ -24,6 +24,7 @@ int main(void)
     tm1637_gpio_setup();
     tm1637_set_displaying(disp_active);
     eeprom_load(&opts);
+    //ds1307_setup(1234);
     current_time = ds1307_get_time();
 
     // Кнопка зажата во время подачи питания - установка времени
@@ -56,6 +57,16 @@ int main(void)
 
 void setup(void)
 {
+    // Отключение тактирование неиспользуемой периферии для энергосбережения.
+    CLK->PCKENR1 &= ~(1 << CLK_PERIPHERAL_SPI);
+    CLK->PCKENR1 &= ~(1 << CLK_PERIPHERAL_UART1);
+    CLK->PCKENR1 &= ~(1 << CLK_PERIPHERAL_TIMER2);
+    CLK->PCKENR2 &= ~(1 << (CLK_PERIPHERAL_AWU & 0x0F));
+    // Настройка пинов на выходы с низким лог. уровнем для энергосбережения.
+    GPIOC->DDR |= GPIO_PIN_5;
+    GPIOC->CR1 |= GPIO_PIN_5;
+    GPIOD->DDR |= GPIO_PIN_2 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6;
+    GPIOD->CR1 |= GPIO_PIN_2 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6;
     // ADC1 для считывания положения потенциометра
     ADC1->CR1 |= ADC1_PRESSEL_FCPU_D6;
     ADC1->CR2 |= ADC1_ALIGN_RIGHT;
