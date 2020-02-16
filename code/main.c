@@ -7,7 +7,9 @@
 #include "dawn.h"
 
 
-void setup(void);
+static bool alarm_active = TRUE;
+
+static void setup(void);
 static void take_user_time_value(uint16_t* current_time, bool dots);
 static void take_user_dawn_duration(uint8_t* dawn_duration);
 static void update_time(uint16_t* current_time);
@@ -18,14 +20,14 @@ int main(void)
     static const enum tm_charset msg_clock_setup[4] = {TM_C, TM_L, TM_0, TM_C};
     static const enum tm_charset msg_alarm_setup[4] = {TM_A, TM_L, TM_A, TM_r};
     static struct options opts;
-    bool disp_active = TRUE;
     uint16_t current_time;
 
     setup();
     input_setup();
     tm1637_gpio_setup();
-    tm1637_set_displaying(disp_active);
+    tm1637_set_displaying(TRUE);
     eeprom_load(&opts);
+    dawn_setup(opts.dawn_duration);
     current_time = ds1307_get_time();
 
     // Кнопка зажата во время подачи питания - установка времени
@@ -45,12 +47,16 @@ int main(void)
                 while (btn_is_pressed());
                 take_user_time_value(&opts.alarm_time, TRUE);
                 take_user_dawn_duration(&opts.dawn_duration);
+                dawn_setup(opts.dawn_duration);
                 eeprom_save(&opts);
+                alarm_active = TRUE;
                 // если долго настраивали будильник, не помешает обновить текущее время.
                 current_time = ds1307_get_time();
             } else {  // Однократное нажатие - вкл/выкл дисплей.
-                disp_active = !disp_active;
-                tm1637_set_displaying(disp_active);
+                if (dawn_is_started()) {
+                    alarm_active = FALSE;
+                    dawn_stop();
+                }
             }
         }
         // Переключение состояния двоеточия на дисплее раз в секунду.
@@ -59,7 +65,7 @@ int main(void)
     }
 }
 
-void setup(void)
+static void setup(void)
 {
     // Отключение тактирование неиспользуемой периферии для энергосбережения.
     CLK->PCKENR1 &= ~(1 << CLK_PERIPHERAL_SPI);
@@ -155,7 +161,7 @@ static void update_time(uint16_t* current_time)
         // Состояние пина SQW/OUT меняется 2 раза в секунду,
         if (pulse_counter % 2 == 0)  // а мы переключаем двоеточие раз в секунду.
             tm1637_display_dec(*current_time, dots = !dots);
-        if (pulse_counter / 2 > 15) {  // Раз в 15 секунд обновляем время
+        if (pulse_counter / 2 > 15) {  // Раз в 15 секунд обновляем время.
             *current_time = ds1307_get_time();
             pulse_counter = 0;
         }
@@ -165,25 +171,26 @@ static void update_time(uint16_t* current_time)
 
 static void handle_alarm(const struct options* opts, uint16_t current_time)
 {
-    static bool dawn_has_started = FALSE;
+    // Рассчётное время полного рассвета относительно текущего времени.
     uint16_t alarm_time = current_time + opts->dawn_duration;
     bool not_too_late = current_time <= opts->alarm_time;
+    // Коррекция рассчётного времени под временной формат.
     if (alarm_time % 100 > 59)
         alarm_time += 40;
     if (alarm_time / 100 > 23)
         alarm_time -= 2300;
-
-    if (opts->alarm_time < opts->dawn_duration) {
-        uint8_t time_shift = 2400 - current_time;
+    /* Самая неказистая ситуация: будильник на 00:ХХ, где ХХ < длительности рассвета,
+     * при том, если текущее время где-то между 23:45 -- 00:00,
+     * то стандартная проверка ломается. Чтобы этого избежать, пришлось
+     * переинтерпретировать условие "ещё не поздно". */
+    if (opts->alarm_time < opts->dawn_duration)
         not_too_late = opts->alarm_time + opts->dawn_duration > alarm_time;
-    }
 
     if (alarm_time >= opts->alarm_time && not_too_late) {
-        if (!dawn_has_started) {
+        if (alarm_active && !dawn_is_started()) {
             dawn_start();
-            dawn_has_started = TRUE;
         }
     } else {
-        dawn_has_started = FALSE;
+        alarm_active = TRUE;
     }
 }

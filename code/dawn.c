@@ -19,6 +19,11 @@ void dawn_start(void)
     TIM2->CR1 |= TIM2_CR1_CEN;
 }
 
+bool dawn_is_started(void)
+{
+    return (TIM2->CR1 & TIM2_CR1_CEN) != 0;
+}
+
 void dawn_stop(void)
 {
     rgbtape_set_R(0);
