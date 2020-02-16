@@ -4,12 +4,14 @@
 #include "input.h"
 #include "ds1307.h"
 #include "eeprom.h"
+#include "dawn.h"
 
 
 void setup(void);
-static void take_user_time(uint16_t* current_time, bool dots);
+static void take_user_time_value(uint16_t* current_time, bool dots);
 static void take_user_dawn_duration(uint8_t* dawn_duration);
 static void update_time(uint16_t* current_time);
+static void handle_alarm(const struct options*, uint16_t current_time);
 
 int main(void)
 {
@@ -24,15 +26,14 @@ int main(void)
     tm1637_gpio_setup();
     tm1637_set_displaying(disp_active);
     eeprom_load(&opts);
-    //ds1307_setup(1234);
     current_time = ds1307_get_time();
 
     // Кнопка зажата во время подачи питания - установка времени
     if (btn_is_pressed()) {
         tm1637_display_chars(msg_clock_setup, FALSE);
         while (btn_is_pressed());
-        take_user_time(&current_time, FALSE);
-        ds1307_set_time(current_time);
+        take_user_time_value(&current_time, FALSE);
+        ds1307_setup(current_time);
     }
 
     while (1) {
@@ -42,7 +43,7 @@ int main(void)
                 tm1637_display_chars(msg_alarm_setup, FALSE);
                 delay_ms(1000);
                 while (btn_is_pressed());
-                take_user_time(&opts.alarm_time, TRUE);
+                take_user_time_value(&opts.alarm_time, TRUE);
                 take_user_dawn_duration(&opts.dawn_duration);
                 eeprom_save(&opts);
                 // если долго настраивали будильник, не помешает обновить текущее время.
@@ -54,6 +55,7 @@ int main(void)
         }
         // Переключение состояния двоеточия на дисплее раз в секунду.
         update_time(&current_time);
+        handle_alarm(&opts, current_time);
     }
 }
 
@@ -74,9 +76,8 @@ void setup(void)
     ADC1->CR2 |= ADC1_ALIGN_RIGHT;
     ADC1->CSR |= ADC1_CHANNEL_4;
     ADC1->CR1 |= ADC1_CR1_ADON;
-
     // TIM1 для RGB-ленты
-    TIM1_TimeBaseInit(20, TIM1_COUNTERMODE_UP, 255, 0);
+    TIM1_TimeBaseInit(20, TIM1_COUNTERMODE_UP, 100, 0);
     TIM1_OC1Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE, TIM1_OUTPUTNSTATE_DISABLE,
                  0, TIM1_OCPOLARITY_HIGH, TIM1_OCNPOLARITY_HIGH, TIM1_OCIDLESTATE_RESET, TIM1_OCNIDLESTATE_RESET);
     TIM1_OC2Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE, TIM1_OUTPUTNSTATE_DISABLE,
@@ -84,14 +85,18 @@ void setup(void)
     TIM1_OC4Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE, 0, TIM1_OCPOLARITY_HIGH, TIM1_OCIDLESTATE_RESET);
     //TIM1_CtrlPWMOutputs(ENABLE);
     TIM1_Cmd(ENABLE);
-
     // TIM4 для функций задержки
     TIM4->PSCR = TIM4_PRESCALER_16;
     TIM4->ARR = 124;
     TIM4->SR1 = (uint8_t) ~TIM4_FLAG_UPDATE;
     TIM4->IER |= TIM4_IT_UPDATE;
     TIM4->CR1 |= TIM4_CR1_CEN;
-
+    // TIM2 для процедуры рассвета
+    TIM2->PSCR = TIM2_PRESCALER_128;
+    TIM2->ARRH = (uint8_t)(15625 >> 8);
+    TIM2->ARRH = (uint8_t) 15625;
+    TIM2->SR1 = (uint8_t) ~TIM2_FLAG_UPDATE;
+    TIM2->IER |= TIM2_IT_UPDATE;
     // I2C для часов реального времени и микросхемы EEPROM
     I2C_Init(I2C_MAX_STANDARD_FREQ, 0x54, I2C_DUTYCYCLE_2, I2C_ACK_CURR, I2C_ADDMODE_7BIT, 2);
     I2C_Cmd(ENABLE);
@@ -99,7 +104,7 @@ void setup(void)
     enableInterrupts();
 }
 
-static void take_user_time(uint16_t* current_time, bool dots)
+static void take_user_time_value(uint16_t* current_time, bool dots)
 {
     uint8_t hours = *current_time / 100;
     uint8_t minutes = *current_time % 100;
@@ -155,5 +160,30 @@ static void update_time(uint16_t* current_time)
             pulse_counter = 0;
         }
         _sq_state = sq_state;
+    }
+}
+
+static void handle_alarm(const struct options* opts, uint16_t current_time)
+{
+    static bool dawn_has_started = FALSE;
+    uint16_t alarm_time = current_time + opts->dawn_duration;
+    bool not_too_late = current_time <= opts->alarm_time;
+    if (alarm_time % 100 > 59)
+        alarm_time += 40;
+    if (alarm_time / 100 > 23)
+        alarm_time -= 2300;
+
+    if (opts->alarm_time < opts->dawn_duration) {
+        uint8_t time_shift = 2400 - current_time;
+        not_too_late = opts->alarm_time + opts->dawn_duration > alarm_time;
+    }
+
+    if (alarm_time >= opts->alarm_time && not_too_late) {
+        if (!dawn_has_started) {
+            dawn_start();
+            dawn_has_started = TRUE;
+        }
+    } else {
+        dawn_has_started = FALSE;
     }
 }

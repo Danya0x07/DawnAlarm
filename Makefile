@@ -19,7 +19,8 @@ SOURCES = \
  code/tm1637.c \
  code/input.c \
  code/ds1307.c \
- code/eeprom.c
+ code/eeprom.c \
+ code/dawn.c
 
 HEADERS = \
  code/include/utils.h \
@@ -27,7 +28,8 @@ HEADERS = \
  code/include/rgbtape.h \
  code/include/input.h \
  code/include/ds1307.h \
- code/include/eeprom.h
+ code/include/eeprom.h \
+ code/include/dawn.h
 
 OUTPUT_DIR = ./build
 OBJ_FILES = $(addprefix $(OUTPUT_DIR)/, $(notdir $(SOURCES:.c=.rel)))
