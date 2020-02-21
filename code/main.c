@@ -1,9 +1,9 @@
 #include <stm8s.h>
-#include "tm1637.h"
 #include "utils.h"
 #include "input.h"
-#include "ds1307.h"
 #include "eeprom.h"
+#include "tm1637.h"
+#include "ds1307.h"
 #include "dawn.h"
 
 
@@ -41,12 +41,13 @@ int main(void)
     while (1) {
         if (btn_pressed()) {
             if (btn_pressed_again()) {  // Двукратное нажатие - настройка будильника.
-                tm1637_set_displaying(TRUE);
                 tm1637_display_chars(msg_alarm_setup, FALSE);
-                delay_ms(1000);
+                delay_ms(700);
                 while (btn_is_pressed());
+
                 take_user_time_value(&opts.alarm_time, TRUE);
                 take_user_dawn_duration(&opts.dawn_duration);
+
                 dawn_setup(opts.dawn_duration);
                 eeprom_save(&opts);
                 alarm_active = TRUE;
@@ -70,7 +71,6 @@ static void setup(void)
     // Отключение тактирование неиспользуемой периферии для энергосбережения.
     CLK->PCKENR1 &= ~(1 << CLK_PERIPHERAL_SPI);
     CLK->PCKENR1 &= ~(1 << CLK_PERIPHERAL_UART1);
-    CLK->PCKENR1 &= ~(1 << CLK_PERIPHERAL_TIMER2);
     CLK->PCKENR2 &= ~(1 << (CLK_PERIPHERAL_AWU & 0x0F));
     // Настройка пинов на выходы с низким лог. уровнем для энергосбережения.
     GPIOC->DDR |= GPIO_PIN_5;
@@ -89,7 +89,7 @@ static void setup(void)
     TIM1_OC2Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE, TIM1_OUTPUTNSTATE_DISABLE,
                  0, TIM1_OCPOLARITY_HIGH, TIM1_OCNPOLARITY_HIGH, TIM1_OCIDLESTATE_RESET, TIM1_OCNIDLESTATE_RESET);
     TIM1_OC4Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE, 0, TIM1_OCPOLARITY_HIGH, TIM1_OCIDLESTATE_RESET);
-    //TIM1_CtrlPWMOutputs(ENABLE);
+    TIM1_CtrlPWMOutputs(ENABLE);
     TIM1_Cmd(ENABLE);
     // TIM4 для функций задержки
     TIM4->PSCR = TIM4_PRESCALER_16;
@@ -98,7 +98,7 @@ static void setup(void)
     TIM4->IER |= TIM4_IT_UPDATE;
     TIM4->CR1 |= TIM4_CR1_CEN;
     // TIM2 для процедуры рассвета
-    TIM2->PSCR = TIM2_PRESCALER_128;
+    TIM2->PSCR = TIM2_PRESCALER_32;
     TIM2->ARRH = (uint8_t)(15625 >> 8);
     TIM2->ARRH = (uint8_t) 15625;
     TIM2->SR1 = (uint8_t) ~TIM2_FLAG_UPDATE;
@@ -161,7 +161,7 @@ static void update_time(uint16_t* current_time)
         // Состояние пина SQW/OUT меняется 2 раза в секунду,
         if (pulse_counter % 2 == 0)  // а мы переключаем двоеточие раз в секунду.
             tm1637_display_dec(*current_time, dots = !dots);
-        if (pulse_counter / 2 > 15) {  // Раз в 15 секунд обновляем время.
+        if (pulse_counter / 2 > 10) {  // Раз в 10 секунд обновляем время.
             *current_time = ds1307_get_time();
             pulse_counter = 0;
         }

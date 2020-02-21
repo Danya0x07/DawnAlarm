@@ -11,7 +11,7 @@ static volatile uint8_t fade;
 void dawn_setup(uint8_t duration)
 {
     red_val = green_val = blue_val = 0;
-    fade = MAX_COLOR_VALUE / duration;
+    fade = MAX_COLOR_VALUE / (duration != 0 ? duration : 1);
 }
 
 void dawn_start(void)
@@ -55,5 +55,5 @@ void __dawn_irg_handler(void) __interrupt(13)
         counter = 0;
     }
 
-    TIM2->SR1 = (uint8_t ) ~TIM2_IT_UPDATE;
+    TIM2->SR1 = (uint8_t) ~TIM2_IT_UPDATE;
 }
