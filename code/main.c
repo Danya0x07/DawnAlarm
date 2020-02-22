@@ -5,7 +5,7 @@
 #include "tm1637.h"
 #include "ds1307.h"
 #include "dawn.h"
-
+#include "rgbtape.h"
 
 static bool alarm_active = TRUE;
 
@@ -83,7 +83,7 @@ static void setup(void)
     ADC1->CSR |= ADC1_CHANNEL_4;
     ADC1->CR1 |= ADC1_CR1_ADON;
     // TIM1 для RGB-ленты
-    TIM1_TimeBaseInit(20, TIM1_COUNTERMODE_UP, 100, 0);
+    TIM1_TimeBaseInit(20, TIM1_COUNTERMODE_UP, RGB_MAX_VALUE, 0);
     TIM1_OC1Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE, TIM1_OUTPUTNSTATE_DISABLE,
                  0, TIM1_OCPOLARITY_HIGH, TIM1_OCNPOLARITY_HIGH, TIM1_OCIDLESTATE_RESET, TIM1_OCNIDLESTATE_RESET);
     TIM1_OC2Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE, TIM1_OUTPUTNSTATE_DISABLE,
@@ -98,9 +98,9 @@ static void setup(void)
     TIM4->IER |= TIM4_IT_UPDATE;
     TIM4->CR1 |= TIM4_CR1_CEN;
     // TIM2 для процедуры рассвета
-    TIM2->PSCR = TIM2_PRESCALER_32;
-    TIM2->ARRH = (uint8_t)(15625 >> 8);
-    TIM2->ARRH = (uint8_t) 15625;
+    TIM2->PSCR = TIM2_PRESCALER_32;  // прерывание 4 раза в секунду
+    TIM2->ARRH = (uint8_t)(15624 >> 8);
+    TIM2->ARRL = (uint8_t) 15624;
     TIM2->SR1 = (uint8_t) ~TIM2_FLAG_UPDATE;
     TIM2->IER |= TIM2_IT_UPDATE;
     // I2C для часов реального времени и микросхемы EEPROM
@@ -178,7 +178,7 @@ static void handle_alarm(const struct options* opts, uint16_t current_time)
     if (alarm_time % 100 > 59)
         alarm_time += 40;
     if (alarm_time / 100 > 23)
-        alarm_time -= 2300;
+        alarm_time -= 2400;
     /* Самая неказистая ситуация: будильник на 00:ХХ, где ХХ < длительности рассвета,
      * при том, если текущее время где-то между 23:45 -- 00:00,
      * то стандартная проверка ломается. Чтобы этого избежать, пришлось
@@ -187,9 +187,8 @@ static void handle_alarm(const struct options* opts, uint16_t current_time)
         not_too_late = opts->alarm_time + opts->dawn_duration > alarm_time;
 
     if (alarm_time >= opts->alarm_time && not_too_late) {
-        if (alarm_active && !dawn_is_started()) {
+        if (alarm_active && !dawn_is_started())
             dawn_start();
-        }
     } else {
         alarm_active = TRUE;
     }
