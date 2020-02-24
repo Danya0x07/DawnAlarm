@@ -10,7 +10,7 @@ struct options {
     uint8_t  dawn_duration; // длительность рассвета (в минутах)
 };
 
-void eeprom_save(struct options* opts);
-void eeprom_load(struct options* opts);
+void eeprom_save(struct options *opts);
+void eeprom_load(struct options *opts);
 
 #endif

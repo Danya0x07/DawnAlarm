@@ -10,10 +10,10 @@
 static bool alarm_active = TRUE;
 
 static void setup(void);
-static void take_user_time_value(uint16_t* current_time, bool dots);
-static void take_user_dawn_duration(uint8_t* dawn_duration);
-static void update_time(uint16_t* current_time);
-static void handle_alarm(const struct options*, uint16_t current_time);
+static void take_user_time_value(uint16_t *current_time, bool dots);
+static void take_user_dawn_duration(uint8_t *dawn_duration);
+static void update_time(uint16_t *current_time);
+static void handle_alarm(const struct options *, uint16_t current_time);
 
 int main(void)
 {
@@ -110,7 +110,7 @@ static void setup(void)
     enableInterrupts();
 }
 
-static void take_user_time_value(uint16_t* current_time, bool dots)
+static void take_user_time_value(uint16_t *current_time, bool dots)
 {
     uint8_t hours = *current_time / 100;
     uint8_t minutes = *current_time % 100;
@@ -134,7 +134,7 @@ static void take_user_time_value(uint16_t* current_time, bool dots)
     *current_time = hours * 100 + minutes;
 }
 
-static void take_user_dawn_duration(uint8_t* dawn_duration)
+static void take_user_dawn_duration(uint8_t *dawn_duration)
 {
     uint8_t _dawn_duration = 0;
     enum tm_charset digits[4] = {TM_d, TM_d, 0, 0};
@@ -150,7 +150,7 @@ static void take_user_dawn_duration(uint8_t* dawn_duration)
     }
 }
 
-static void update_time(uint16_t* current_time)
+static void update_time(uint16_t *current_time)
 {
     static uint8_t pulse_counter = 0;
     static bool dots = FALSE, _sq_state = FALSE;
@@ -169,7 +169,7 @@ static void update_time(uint16_t* current_time)
     }
 }
 
-static void handle_alarm(const struct options* opts, uint16_t current_time)
+static void handle_alarm(const struct options *opts, uint16_t current_time)
 {
     // Рассчётное время полного рассвета относительно текущего времени.
     uint16_t alarm_time = current_time + opts->dawn_duration;

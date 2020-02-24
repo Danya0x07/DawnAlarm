@@ -27,8 +27,6 @@ bool btn_pressed(void)
     if (btn.last_state != current_state) {
         delay_ms(5);
         current_state = btn_is_pressed();
-    } else {
-        return FALSE;
     }
 
     if (!btn.last_state && current_state) pressed = !(bool)btn.pull;

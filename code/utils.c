@@ -8,7 +8,7 @@ void delay_ms(uint16_t us)
     while (time < us);
 }
 
-void i2c_mem_write(uint8_t slave_addr, uint8_t* data, uint8_t count)
+void i2c_mem_write(uint8_t slave_addr, uint8_t *data, uint8_t count)
 {
     while (I2C_GetFlagStatus(I2C_FLAG_BUSBUSY));
     I2C_GenerateSTART(ENABLE);
@@ -22,7 +22,7 @@ void i2c_mem_write(uint8_t slave_addr, uint8_t* data, uint8_t count)
     I2C_GenerateSTOP(ENABLE);
 }
 
-void i2c_mem_read(uint8_t slave_addr, uint8_t* buffer, uint8_t count)
+void i2c_mem_read(uint8_t slave_addr, uint8_t *buffer, uint8_t count)
 {
     I2C_GenerateSTART(ENABLE);
     while (!I2C_CheckEvent(I2C_EVENT_MASTER_MODE_SELECT));
@@ -39,7 +39,7 @@ void i2c_mem_read(uint8_t slave_addr, uint8_t* buffer, uint8_t count)
     I2C_GenerateSTOP(ENABLE);
 }
 
-void i2c_set_mem_ptr(uint8_t slave_addr, uint8_t* mem_addr, uint8_t addr_size)
+void i2c_set_mem_ptr(uint8_t slave_addr, uint8_t *mem_addr, uint8_t addr_size)
 {
     I2C_GenerateSTART(ENABLE);
     while (!I2C_CheckEvent(I2C_EVENT_MASTER_MODE_SELECT));
