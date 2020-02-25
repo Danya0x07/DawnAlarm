@@ -1,8 +1,9 @@
 #include "input.h"
 #include "utils.h"
 
-#define DOUBLECLICK_SCAN_DURATION   370
-#define ADC_CALIBRATION_VAL 15
+#define DEBOUNCE_DURATION_MS    5
+#define DOUBLECLICK_SCAN_CYCLES 370
+#define ADC_CALIBRATION_VAL (-15)
 
 enum btn_pull {PULLDOWN, PULLUP};
 
@@ -25,7 +26,7 @@ bool btn_pressed(void)
     bool pressed = FALSE;
     bool current_state = btn_is_pressed();
     if (btn.last_state != current_state) {
-        delay_ms(5);
+        delay_ms(DEBOUNCE_DURATION_MS);
         current_state = btn_is_pressed();
     }
 
@@ -38,7 +39,7 @@ bool btn_pressed(void)
 bool btn_pressed_again(void)
 {
     uint16_t i;
-    for (i = 0; i < DOUBLECLICK_SCAN_DURATION; i++) {
+    for (i = 0; i < DOUBLECLICK_SCAN_CYCLES; i++) {
         delay_ms(1);
         if (btn_pressed()) {
             return TRUE;
@@ -60,9 +61,12 @@ uint16_t potentiometer_get(uint16_t scale)
     while (!(ADC1->CSR & ADC1_FLAG_EOC));
     adc_value = ADC1->DRL;
     adc_value |= ADC1->DRH << 8;
-    if (adc_value > 500)  // небольшая корректировка значения.
-        adc_value -= ADC_CALIBRATION_VAL;
-    result = adc_value * scale / 1023;
-    if (result > scale) result = scale;
+    if (adc_value > 500 && scale < 200)  // Небольшая корректировка значения.
+        adc_value += ADC_CALIBRATION_VAL;
+    result = (uint32_t)adc_value * scale / 1023;
+    if (result > scale)
+        result = scale;
+    if (scale == 256 && result == scale)  // Откровенный костыль, но лучше так.
+        result = 255;
     return result;
 }

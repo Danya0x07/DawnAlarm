@@ -10,7 +10,8 @@ enum tm_charset {
     TM_0, TM_1, TM_2, TM_3, TM_4, TM_5, TM_6, TM_7,
     TM_8, TM_9, TM_A, TM_b, TM_C, TM_d, TM_E, TM_F,
     TM_H, TM_I, TM_L, TM_P, TM_q, TM_r, TM_U,
-    TM_MINUS, TM_UNDERSCORE, TM_CLEAR,
+    TM_MINUS, TM_UNDERSCORE, TM_DEGREE, TM_CLEAR,
+    TOTAL_CHARS
 };
 
 void tm1637_gpio_setup(void);

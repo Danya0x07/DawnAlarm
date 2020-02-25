@@ -17,6 +17,7 @@ SOURCES = \
  code/main.c \
  code/utils.c \
  code/tm1637.c \
+ code/rgbtape.c \
  code/input.c \
  code/ds1307.c \
  code/eeprom.c \

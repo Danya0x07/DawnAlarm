@@ -7,22 +7,36 @@
 #include "dawn.h"
 #include "rgbtape.h"
 
+enum menu_item {
+    ITEM_ALARMSETUP,
+    ITEM_COLORSETUP,
+    ITEM_DISKO,
+    ITEM_CLOCKSETUP,
+    ITEM_CANCEL,
+
+    TOTAL_ITEMS
+};
+
 static bool alarm_active = TRUE;
 
-static void setup(void);
-static void take_user_time_value(uint16_t *current_time, bool dots);
-static void take_user_dawn_duration(uint8_t *dawn_duration);
+static void sys_setup(void);
+
+static void perform_disko(void);
+
+static uint16_t take_user_time_value(bool dots);
+static uint8_t take_user_dawn_duration(void);
+static void set_user_brightness(enum color);
+static enum menu_item take_user_menu_item(void);
+
 static void update_time(uint16_t *current_time);
 static void handle_alarm(const struct options *, uint16_t current_time);
 
 int main(void)
 {
-    static const enum tm_charset msg_clock_setup[4] = {TM_C, TM_L, TM_0, TM_C};
-    static const enum tm_charset msg_alarm_setup[4] = {TM_A, TM_L, TM_A, TM_r};
     static struct options opts;
     uint16_t current_time;
 
-    setup();
+    sys_setup();
     input_setup();
     tm1637_gpio_setup();
     tm1637_set_displaying(TRUE);
@@ -30,43 +44,49 @@ int main(void)
     dawn_setup(opts.dawn_duration);
     current_time = ds1307_get_time();
 
-    // Кнопка зажата во время подачи питания - установка времени
-    if (btn_is_pressed()) {
-        tm1637_display_chars(msg_clock_setup, FALSE);
-        while (btn_is_pressed());
-        take_user_time_value(&current_time, FALSE);
-        ds1307_setup(current_time);
-    }
-
     while (1) {
         if (btn_pressed()) {
-            if (btn_pressed_again()) {  // Двукратное нажатие - настройка будильника.
-                tm1637_display_chars(msg_alarm_setup, FALSE);
-                delay_ms(700);
-                while (btn_is_pressed());
-
-                take_user_time_value(&opts.alarm_time, TRUE);
-                take_user_dawn_duration(&opts.dawn_duration);
-
-                dawn_setup(opts.dawn_duration);
-                eeprom_save(&opts);
-                alarm_active = TRUE;
-                // если долго настраивали будильник, не помешает обновить текущее время.
+            if (btn_pressed_again()) {  // Двукратное нажатие - вход в меню.
+                switch (take_user_menu_item())
+                {
+                case ITEM_ALARMSETUP:
+                    opts.alarm_time = take_user_time_value(FALSE);
+                    opts.dawn_duration = take_user_dawn_duration();
+                    dawn_setup(opts.dawn_duration);
+                    eeprom_save(&opts);
+                    alarm_active = TRUE;
+                    break;
+                case ITEM_COLORSETUP:
+                    set_user_brightness(COLOR_RED);
+                    set_user_brightness(COLOR_GREEN);
+                    set_user_brightness(COLOR_BLUE);
+                    break;
+                case ITEM_DISKO:
+                    perform_disko();
+                    break;
+                case ITEM_CLOCKSETUP:
+                    current_time = take_user_time_value(TRUE);
+                    ds1307_setup(current_time);
+                    break;
+                case ITEM_CANCEL:
+                    break;
+                }
+                // если долго копались в меню, не помешает обновить текущее время.
                 current_time = ds1307_get_time();
-            } else {  // Однократное нажатие - вкл/выкл дисплей.
-                if (dawn_is_started()) {
+            } else {  // Однократное нажатие - или ничего, или выкл светодиоды.
+                if (dawn_is_started() || rgbtape_is_active()) {
                     alarm_active = FALSE;
                     dawn_stop();
                 }
             }
         }
-        // Переключение состояния двоеточия на дисплее раз в секунду.
+
         update_time(&current_time);
         handle_alarm(&opts, current_time);
     }
 }
 
-static void setup(void)
+static void sys_setup(void)
 {
     // Отключение тактирование неиспользуемой периферии для энергосбережения.
     CLK->PCKENR1 &= ~(1 << CLK_PERIPHERAL_SPI);
@@ -110,12 +130,11 @@ static void setup(void)
     enableInterrupts();
 }
 
-static void take_user_time_value(uint16_t *current_time, bool dots)
+static uint16_t take_user_time_value(bool dots)
 {
-    uint8_t hours = *current_time / 100;
-    uint8_t minutes = *current_time % 100;
+    uint8_t hours = 0, minutes = 0;
     uint8_t _hours = 0, _minutes = 0;
-    while (!btn_pressed()) {  // установка часов
+    while (!btn_pressed()) {
         hours = potentiometer_get(24);
         if (hours != _hours) {
             tm1637_display_dec(hours * 100 + minutes, dots);
@@ -123,7 +142,7 @@ static void take_user_time_value(uint16_t *current_time, bool dots)
         }
         delay_ms(10);
     }
-    while (!btn_pressed()) {  // установка минут
+    while (!btn_pressed()) {
         minutes = potentiometer_get(60);
         if (minutes != _minutes) {
             tm1637_display_dec(hours * 100 + minutes, dots);
@@ -131,23 +150,68 @@ static void take_user_time_value(uint16_t *current_time, bool dots)
         }
         delay_ms(10);
     }
-    *current_time = hours * 100 + minutes;
+    return hours * 100 + minutes;
 }
 
-static void take_user_dawn_duration(uint8_t *dawn_duration)
+static uint8_t take_user_dawn_duration(void)
 {
-    uint8_t _dawn_duration = 0;
-    enum tm_charset digits[4] = {TM_d, TM_d, 0, 0};
+    uint8_t dawn_duration = 0, _dawn_duration = 0;
+    enum tm_charset disp_content[4] = {TM_d, TM_d, 0, 0};
     while (!btn_pressed()) {
-        *dawn_duration = potentiometer_get(16);
-        if (*dawn_duration != _dawn_duration) {
-            digits[2] = *dawn_duration / 10;
-            digits[3] = *dawn_duration % 10;
-            tm1637_display_chars(digits, FALSE);
-            _dawn_duration = *dawn_duration;
+        dawn_duration = potentiometer_get(16);
+        if (dawn_duration != _dawn_duration) {
+            disp_content[2] = dawn_duration / 10;
+            disp_content[3] = dawn_duration % 10;
+            tm1637_display_chars(disp_content, FALSE);
+            _dawn_duration = dawn_duration;
         }
         delay_ms(10);
     }
+    return dawn_duration;
+}
+
+static void set_user_brightness(enum color col)
+{
+    uint8_t value = 0, _value = 0;
+    enum tm_charset disp_content[4] = {TM_CLEAR, 0, 0, 0};
+    while (!btn_pressed()) {
+        value = potentiometer_get(RGB_MAX_VALUE + 1);
+        if (value != _value) {
+            disp_content[1] = value / 100;
+            disp_content[2] = (value / 10) % 10;
+            disp_content[3] = value % 10;
+            tm1637_display_chars(disp_content, FALSE);
+            rgbtape_set(col, value);
+            _value = value;
+        }
+        delay_ms(10);
+    }
+}
+
+static enum menu_item take_user_menu_item(void)
+{
+    enum menu_item item = 0, _item = 0;
+    enum tm_charset menu[TOTAL_ITEMS][4] = {
+        {TM_A, TM_L, TM_A, TM_r},
+        {TM_CLEAR, TM_C, TM_0, TM_L},
+        {TM_d, TM_I, TM_C, TM_0},
+        {TM_C, TM_L, TM_0, TM_C},
+        {TM_0, TM_E, TM_H, TM_A}
+    };
+
+    while (!btn_pressed()) {
+        item = potentiometer_get(TOTAL_ITEMS);
+        if (item != _item) {
+            tm1637_display_chars(menu[item], FALSE);
+            _item = item;
+        }
+    }
+    return item;
+}
+
+static void perform_disko(void)
+{
+
 }
 
 static void update_time(uint16_t *current_time)

@@ -1,8 +1,8 @@
 #include "dawn.h"
 #include "rgbtape.h"
 
-#define REDGREEN_DIFFERENCE 10
-#define REDBLUE_DIFFERENCE  20
+#define REDGREEN_DIFFERENCE 30
+#define REDBLUE_DIFFERENCE  50
 #define BRIGHTNESS_FADE 1
 
 static volatile uint16_t red_val, green_val, blue_val;
