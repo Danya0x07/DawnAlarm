@@ -21,6 +21,7 @@ static bool alarm_active = TRUE;  // Используется функциями
 
 static void sys_setup(void);
 static void update_time(uint16_t *current_time);
+static void update_display_brightness(uint16_t current_time);
 static void handle_alarm(const struct options *, uint16_t current_time);
 static void perform_disko(void);
 
@@ -80,6 +81,7 @@ int main(void)
         }
 
         update_time(&current_time);
+        update_display_brightness(current_time);
         handle_alarm(&opts, current_time);
     }
 }
@@ -144,6 +146,20 @@ static void update_time(uint16_t *current_time)
             pulse_counter = 0;
         }
         _sq_state = sq_state;
+    }
+}
+
+static void update_display_brightness(uint16_t current_time)
+{
+    static bool _night = 0;
+    bool night = (current_time >= 2000 && current_time < 2400) ||
+                 (current_time < 600);
+    if (night != _night){
+        if (night)
+            tm1637_set_brightness(TM_NIGHT_BRIGHTNESS);
+        else
+            tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
+        _night = night;
     }
 }
 

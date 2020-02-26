@@ -3,8 +3,8 @@
 
 #include <stm8s.h>
 
-/* Яркость сегментов [0; 7]. */
-#define TM_BRIGHTNESSS  5
+#define TM_DEFAULT_BRIGHTNESS   7
+#define TM_NIGHT_BRIGHTNESS     0
 
 enum tm_charset {
     TM_0, TM_1, TM_2, TM_3, TM_4, TM_5, TM_6, TM_7,
@@ -27,5 +27,9 @@ void tm1637_display_chars(const enum tm_charset[4], bool dots);
 /* Переключает состояние дисплея,
  * displaying == 1: сегменты светятся, 0: не светятся. */
 void tm1637_set_displaying(bool displaying);
+
+/* Устанавливает яркость дисплея.
+ * brightness = [0; 7] */
+void tm1637_set_brightness(uint8_t brightness);
 
 #endif

@@ -51,15 +51,19 @@ const uint8_t tm_font[] = {
     0b00000000,  // пустота
 };
 
+static uint8_t current_brightness = TM_DEFAULT_BRIGHTNESS;
+
 /* Программная реализация китайского недо-I2C протокола, по которому работают
  * эти модули. Поскольку наш МК настроен на 2 МГц, микросекундная задержка
  * оказалась слишком запарна для реализации, и было решено забить
  * на тайминги в 2-3 мкс и заменить их на задежрку в 1 мс. Костыльно, но
  * в нашем случае не критично. При повторном использовании этой библиотеки
  * стоит заменить задержки на микросекундные, если необходимо. */
+static void tm1637_send_command(uint8_t);
+static void tm1637_send_sequence(uint8_t [], uint8_t count);
+static void tm1637_write_byte(uint8_t);
 static void tm1637_transmission_start(void);
 static void tm1637_transmission_stop(void);
-static void tm1637_write_byte(uint8_t);
 static inline void tm1637_transmission_handle_ack(void);
 
 void tm1637_gpio_setup(void)
@@ -70,39 +74,30 @@ void tm1637_gpio_setup(void)
 
 void tm1637_display_dec(int16_t number, bool dots)
 {
-    tm1637_transmission_start();
-    tm1637_write_byte(0x40);  // автосдвиг курсора
-    tm1637_transmission_stop();
-
-    tm1637_transmission_start();
-    tm1637_write_byte(0xC0);  // адрес 1-го сегмента
+    uint8_t sequence[5] = {0};
     if (number > 9999)
         number = 9999;
     else if (number < -999)
         number = -999;
-
+    sequence[0] = 0xC0;  // адрес 1-го сегмента
     if (number < 0) {
-        tm1637_write_byte(tm_font[TM_MINUS]);
+        sequence[1] = tm_font[TM_MINUS];
         number = -number;
     }
     else {
-        tm1637_write_byte(tm_font[number / 1000]);
+        sequence[1] = tm_font[number / 1000];
     }
-    number %= 1000;
-    tm1637_write_byte(tm_font[number / 100] | dots << 7);
-    number %= 100;
-    tm1637_write_byte(tm_font[number / 10]);
-    number %= 10;
-    tm1637_write_byte(tm_font[number]);
-    tm1637_transmission_stop();
+    sequence[2] = tm_font[(number %= 1000) / 100] | dots << 7;
+    sequence[3] = tm_font[(number %= 100) / 10];
+    sequence[4] = tm_font[(number %= 10)];
+    tm1637_send_command(0x40);  // автосдвиг курсора
+    tm1637_send_sequence(sequence, sizeof(sequence));
 }
 
 void tm1637_display_chars(const enum tm_charset ch[4], bool dots)
 {
     uint8_t i;
-    tm1637_transmission_start();
-    tm1637_write_byte(0x40);  // автосдвиг курсора
-    tm1637_transmission_stop();
+    tm1637_send_command(0x40);  // автосдвиг курсора
     tm1637_transmission_start();
     tm1637_write_byte(0xC0);  // адрес 1-го сегмента
     for (i = 0; i < 4; i++)
@@ -112,9 +107,47 @@ void tm1637_display_chars(const enum tm_charset ch[4], bool dots)
 
 void tm1637_set_displaying(bool displaying)
 {
+    tm1637_send_command(0x80 | current_brightness | ((uint8_t)displaying << 3));
+}
+
+void tm1637_set_brightness(uint8_t brightness)
+{
+    current_brightness = brightness & 0x07;
+    tm1637_send_command(0x80 | current_brightness | (1 << 3));
+}
+
+static void tm1637_send_command(uint8_t command)
+{
     tm1637_transmission_start();
-    tm1637_write_byte(0x80 | TM_BRIGHTNESSS | ((uint8_t) displaying << 3));
+    tm1637_write_byte(command);
     tm1637_transmission_stop();
+}
+
+static void tm1637_send_sequence(uint8_t sequence[], uint8_t count)
+{
+    uint8_t i;
+    tm1637_transmission_start();
+    for (i = 0; i < count; i++) {
+        tm1637_write_byte(sequence[i]);
+    }
+    tm1637_transmission_stop();
+}
+
+static void tm1637_write_byte(uint8_t data)
+{
+    uint8_t i;
+    for (i = 0; i < 8; i++) {
+        tm_clk_0();
+        if (data & 1)
+            tm_din_1();
+        else
+            tm_din_0();
+        data >>= 1;
+        delay_ms(1);
+        tm_clk_1();
+        delay_ms(1);
+    }
+    tm1637_transmission_handle_ack();
 }
 
 static void tm1637_transmission_start(void)
@@ -134,23 +167,6 @@ static void tm1637_transmission_stop(void)
     tm_clk_1();
     delay_ms(1);
     tm_din_1();
-}
-
-static void tm1637_write_byte(uint8_t data)
-{
-    uint8_t i;
-    for (i = 0; i < 8; i++) {
-        tm_clk_0();
-        if (data & 1)
-            tm_din_1();
-        else
-            tm_din_0();
-        data >>= 1;
-        delay_ms(1);
-        tm_clk_1();
-        delay_ms(1);
-    }
-    tm1637_transmission_handle_ack();
 }
 
 static inline void tm1637_transmission_handle_ack(void)
