@@ -17,5 +17,6 @@ enum color {
 #define rgbtape_is_active() (TIM1_GetCapture1() || TIM1_GetCapture2() || TIM1_GetCapture4())
 
 void rgbtape_set(enum color, uint8_t);
+enum color rgbtape_change_color(enum color);
 
 #endif

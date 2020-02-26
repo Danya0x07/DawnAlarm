@@ -8,6 +8,12 @@ void delay_ms(uint16_t us)
     while (time < us);
 }
 
+void __delay_irq_handler(void) __interrupt(23)
+{
+    time++;
+    TIM4->SR1 = (uint8_t) ~TIM4_IT_UPDATE;
+}
+
 void i2c_mem_write(uint8_t slave_addr, uint8_t *data, uint8_t count)
 {
     while (I2C_GetFlagStatus(I2C_FLAG_BUSBUSY));
@@ -49,10 +55,4 @@ void i2c_set_mem_ptr(uint8_t slave_addr, uint8_t *mem_addr, uint8_t addr_size)
         I2C_SendData(*mem_addr++);
         while (!I2C_CheckEvent(I2C_EVENT_MASTER_BYTE_TRANSMITTED));
     }
-}
-
-void __delay_irq_handler(void) __interrupt(23)
-{
-    time++;
-    TIM4->SR1 = (uint8_t) ~TIM4_IT_UPDATE;
 }

@@ -3,7 +3,7 @@
 
 #define DEBOUNCE_DURATION_MS    5
 #define DOUBLECLICK_SCAN_CYCLES 370
-#define ADC_CALIBRATION_VAL (-15)
+#define ADC_ADJUST_SHIFT    (-15)
 
 enum btn_pull {PULLDOWN, PULLUP};
 
@@ -62,7 +62,7 @@ uint16_t potentiometer_get(uint16_t scale)
     adc_value = ADC1->DRL;
     adc_value |= ADC1->DRH << 8;
     if (adc_value > 500 && scale < 200)  // Небольшая корректировка значения.
-        adc_value += ADC_CALIBRATION_VAL;
+        adc_value += ADC_ADJUST_SHIFT;
     result = (uint32_t)adc_value * scale / 1023;
     if (result > scale)
         result = scale;

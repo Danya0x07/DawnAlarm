@@ -14,22 +14,20 @@ enum menu_item {
     ITEM_CLOCKSETUP,
     ITEM_CANCEL,
 
-    TOTAL_ITEMS
+    ITEMS_TOTAL
 };
 
-static bool alarm_active = TRUE;
+static bool alarm_active = TRUE;  // Используется функциями main и handle_alarm
 
 static void sys_setup(void);
-
-static void perform_disko(void);
-
-static uint16_t take_user_time_value(bool dots);
-static uint8_t take_user_dawn_duration(void);
-static void set_user_brightness(enum color);
-static enum menu_item take_user_menu_item(void);
-
 static void update_time(uint16_t *current_time);
 static void handle_alarm(const struct options *, uint16_t current_time);
+static void perform_disko(void);
+
+static void set_user_brightness(enum color);
+static enum menu_item take_user_menu_item(void);
+static uint16_t take_user_time_value(bool dots);
+static uint8_t take_user_dawn_duration(void);
 
 int main(void)
 {
@@ -130,6 +128,108 @@ static void sys_setup(void)
     enableInterrupts();
 }
 
+static void update_time(uint16_t *current_time)
+{
+    static uint8_t pulse_counter = 0;
+    static bool dots = FALSE, _sq_state = FALSE;
+
+    bool sq_state = ds1307_sqwout_is_1();
+    if (sq_state != _sq_state) {
+        pulse_counter++;
+        // Состояние пина SQW/OUT меняется 2 раза в секунду,
+        if (pulse_counter % 2 == 0)  // а мы переключаем двоеточие раз в секунду.
+            tm1637_display_dec(*current_time, dots = !dots);
+        if (pulse_counter / 2 > 10) {  // Раз в 10 секунд обновляем время.
+            *current_time = ds1307_get_time();
+            pulse_counter = 0;
+        }
+        _sq_state = sq_state;
+    }
+}
+
+static void handle_alarm(const struct options *opts, uint16_t current_time)
+{
+    // Рассчётное время полного рассвета относительно текущего времени.
+    uint16_t estimated_alarm = current_time + opts->dawn_duration;
+    bool not_too_late = current_time <= opts->alarm_time;
+    // Коррекция рассчётного времени под временной формат.
+    if (estimated_alarm % 100 > 59)
+        estimated_alarm += 40;
+    if (estimated_alarm / 100 > 23)
+        estimated_alarm -= 2400;
+    /* Самая неказистая ситуация: будильник на 00:ХХ, где ХХ < длительности рассвета,
+     * при том, если текущее время где-то между 23:45 -- 00:00,
+     * то стандартная проверка ломается. Чтобы этого избежать, пришлось
+     * переинтерпретировать условие "ещё не поздно". */
+    if (opts->alarm_time < opts->dawn_duration)
+        not_too_late = opts->alarm_time + opts->dawn_duration > estimated_alarm;
+
+    if (estimated_alarm >= opts->alarm_time && not_too_late) {
+        if (alarm_active && !dawn_is_started())
+            dawn_start();
+    } else {
+        alarm_active = TRUE;
+    }
+}
+
+static void perform_disko(void)
+{
+    enum color incr_color = COLOR_BLUE;
+    enum color decr_color = COLOR_RED;
+    uint16_t i;
+    while (!btn_pressed()) {
+        for (i = 0; i < RGB_MAX_VALUE + 1; i++) {
+            rgbtape_set(incr_color, i);
+            rgbtape_set(decr_color, RGB_MAX_VALUE - i);
+            delay_ms(20);
+        }
+        decr_color = incr_color;
+        incr_color = rgbtape_change_color(incr_color);
+    }
+    rgbtape_set_R(0);
+    rgbtape_set_G(0);
+    rgbtape_set_B(0);
+}
+
+static void set_user_brightness(enum color c)
+{
+    uint8_t val = 0, _val = 0;
+    enum tm_charset disp_content[4] = {TM_CLEAR, 0, 0, 0};
+    while (!btn_pressed()) {
+        val = potentiometer_get(RGB_MAX_VALUE + 1);
+        if (val != _val) {
+            disp_content[1] = val / 100;
+            disp_content[2] = (val / 10) % 10;
+            disp_content[3] = val % 10;
+            tm1637_display_chars(disp_content, FALSE);
+            rgbtape_set(c, val);
+            _val = val;
+        }
+        delay_ms(10);
+    }
+}
+
+static enum menu_item take_user_menu_item(void)
+{
+    enum menu_item item = 0, _item = 0;
+    enum tm_charset menu[ITEMS_TOTAL][4] = {
+        {TM_A, TM_L, TM_A, TM_r},
+        {TM_CLEAR, TM_C, TM_0, TM_L},
+        {TM_d, TM_I, TM_C, TM_0},
+        {TM_C, TM_L, TM_0, TM_C},
+        {TM_0, TM_E, TM_H, TM_A}
+    };
+
+    while (!btn_pressed()) {
+        item = potentiometer_get(ITEMS_TOTAL);
+        if (item != _item) {
+            tm1637_display_chars(menu[item], FALSE);
+            _item = item;
+        }
+    }
+    return item;
+}
+
 static uint16_t take_user_time_value(bool dots)
 {
     uint8_t hours = 0, minutes = 0;
@@ -168,92 +268,4 @@ static uint8_t take_user_dawn_duration(void)
         delay_ms(10);
     }
     return dawn_duration;
-}
-
-static void set_user_brightness(enum color col)
-{
-    uint8_t value = 0, _value = 0;
-    enum tm_charset disp_content[4] = {TM_CLEAR, 0, 0, 0};
-    while (!btn_pressed()) {
-        value = potentiometer_get(RGB_MAX_VALUE + 1);
-        if (value != _value) {
-            disp_content[1] = value / 100;
-            disp_content[2] = (value / 10) % 10;
-            disp_content[3] = value % 10;
-            tm1637_display_chars(disp_content, FALSE);
-            rgbtape_set(col, value);
-            _value = value;
-        }
-        delay_ms(10);
-    }
-}
-
-static enum menu_item take_user_menu_item(void)
-{
-    enum menu_item item = 0, _item = 0;
-    enum tm_charset menu[TOTAL_ITEMS][4] = {
-        {TM_A, TM_L, TM_A, TM_r},
-        {TM_CLEAR, TM_C, TM_0, TM_L},
-        {TM_d, TM_I, TM_C, TM_0},
-        {TM_C, TM_L, TM_0, TM_C},
-        {TM_0, TM_E, TM_H, TM_A}
-    };
-
-    while (!btn_pressed()) {
-        item = potentiometer_get(TOTAL_ITEMS);
-        if (item != _item) {
-            tm1637_display_chars(menu[item], FALSE);
-            _item = item;
-        }
-    }
-    return item;
-}
-
-static void perform_disko(void)
-{
-
-}
-
-static void update_time(uint16_t *current_time)
-{
-    static uint8_t pulse_counter = 0;
-    static bool dots = FALSE, _sq_state = FALSE;
-
-    bool sq_state = ds1307_sqwout_is_1();
-    if (sq_state != _sq_state) {
-        pulse_counter++;
-        // Состояние пина SQW/OUT меняется 2 раза в секунду,
-        if (pulse_counter % 2 == 0)  // а мы переключаем двоеточие раз в секунду.
-            tm1637_display_dec(*current_time, dots = !dots);
-        if (pulse_counter / 2 > 10) {  // Раз в 10 секунд обновляем время.
-            *current_time = ds1307_get_time();
-            pulse_counter = 0;
-        }
-        _sq_state = sq_state;
-    }
-}
-
-static void handle_alarm(const struct options *opts, uint16_t current_time)
-{
-    // Рассчётное время полного рассвета относительно текущего времени.
-    uint16_t alarm_time = current_time + opts->dawn_duration;
-    bool not_too_late = current_time <= opts->alarm_time;
-    // Коррекция рассчётного времени под временной формат.
-    if (alarm_time % 100 > 59)
-        alarm_time += 40;
-    if (alarm_time / 100 > 23)
-        alarm_time -= 2400;
-    /* Самая неказистая ситуация: будильник на 00:ХХ, где ХХ < длительности рассвета,
-     * при том, если текущее время где-то между 23:45 -- 00:00,
-     * то стандартная проверка ломается. Чтобы этого избежать, пришлось
-     * переинтерпретировать условие "ещё не поздно". */
-    if (opts->alarm_time < opts->dawn_duration)
-        not_too_late = opts->alarm_time + opts->dawn_duration > alarm_time;
-
-    if (alarm_time >= opts->alarm_time && not_too_late) {
-        if (alarm_active && !dawn_is_started())
-            dawn_start();
-    } else {
-        alarm_active = TRUE;
-    }
 }

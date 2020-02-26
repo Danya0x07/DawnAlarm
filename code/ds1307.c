@@ -8,23 +8,23 @@
 #define DS_RS1  (1 << 1)
 #define DS_RS0  (1 << 0)
 
-static uint8_t convert_to_bindec(uint8_t value)
+static uint8_t convert_to_bindec(uint8_t val)
 {
-    return ((value / 10) << 4) | (value % 10);
+    return ((val / 10) << 4) | (val % 10);
 }
 
-static uint8_t convert_from_bindec(uint8_t value)
+static uint8_t convert_from_bindec(uint8_t val)
 {
-    return (value >> 4) * 10 + (value & 0x0F);
+    return (val >> 4) * 10 + (val & 0x0F);
 }
 
-void ds1307_setup(uint16_t start_time)
+void ds1307_setup(uint16_t time)
 {
     uint8_t settings[] = {
         0,  // начало памяти
         0,  // запуск счёта времени | секунды
-        convert_to_bindec(start_time % 100),  // минуты
-        convert_to_bindec(start_time / 100),  // часы
+        convert_to_bindec(time % 100),  // минуты
+        convert_to_bindec(time / 100),  // часы
         1,  // день недели (не используется)
         1,  // число (не используется)
         1,  // месяц (не используется)
