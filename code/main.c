@@ -43,7 +43,7 @@ int main(void)
     dawn_setup(opts.dawn_duration);
     current_time = ds1307_get_time();
 
-    while (1) {
+    while (TRUE) {
         if (btn_pressed()) {
             if (btn_pressed_again()) {  // Двукратное нажатие - вход в меню.
                 switch (take_user_menu_item())
@@ -192,9 +192,13 @@ static void perform_disko(void)
 {
     enum color incr_color = COLOR_BLUE;
     enum color decr_color = COLOR_RED;
+    uint8_t smiley[4] = {0x18, 0xEB, 0x6B, 0x0C};
     uint16_t i;
-    while (!btn_pressed()) {
-        for (i = 0; i < RGB_MAX_VALUE + 1; i++) {
+    tm1637_display_custom(smiley);
+    while (btn_is_pressed());
+    delay_ms(10);  // кнопочный дребезг
+    while (!btn_is_pressed()) {
+        for (i = 0; i < RGB_MAX_VALUE + 1 && !btn_is_pressed(); i++) {
             rgbtape_set(incr_color, i);
             rgbtape_set(decr_color, RGB_MAX_VALUE - i);
             delay_ms(20);

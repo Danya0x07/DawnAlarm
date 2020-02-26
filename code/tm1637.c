@@ -53,14 +53,13 @@ const uint8_t tm_font[] = {
 
 static uint8_t current_brightness = TM_DEFAULT_BRIGHTNESS;
 
-/* Программная реализация китайского недо-I2C протокола, по которому работают
- * эти модули. Поскольку наш МК настроен на 2 МГц, микросекундная задержка
+/* FIXME: Поскольку наш МК настроен на 2 МГц, микросекундная задержка
  * оказалась слишком запарна для реализации, и было решено забить
  * на тайминги в 2-3 мкс и заменить их на задежрку в 1 мс. Костыльно, но
  * в нашем случае не критично. При повторном использовании этой библиотеки
  * стоит заменить задержки на микросекундные, если необходимо. */
 static void tm1637_send_command(uint8_t);
-static void tm1637_send_sequence(uint8_t [], uint8_t count);
+static void tm1637_send_sequence(const uint8_t [], uint8_t count);
 static void tm1637_write_byte(uint8_t);
 static void tm1637_transmission_start(void);
 static void tm1637_transmission_stop(void);
@@ -105,6 +104,17 @@ void tm1637_display_chars(const enum tm_charset ch[4], bool dots)
     tm1637_transmission_stop();
 }
 
+void tm1637_display_custom(uint8_t disp_content[4])
+{
+    uint8_t i;
+    tm1637_send_command(0x40);  // автосдвиг курсора
+    tm1637_transmission_start();
+    tm1637_write_byte(0xC0);  // адрес 1-го сегмента
+    for (i = 0; i < 4; i++)
+        tm1637_write_byte(disp_content[i]);
+    tm1637_transmission_stop();
+}
+
 void tm1637_set_displaying(bool displaying)
 {
     tm1637_send_command(0x80 | current_brightness | ((uint8_t)displaying << 3));
@@ -123,7 +133,7 @@ static void tm1637_send_command(uint8_t command)
     tm1637_transmission_stop();
 }
 
-static void tm1637_send_sequence(uint8_t sequence[], uint8_t count)
+static void tm1637_send_sequence(const uint8_t sequence[], uint8_t count)
 {
     uint8_t i;
     tm1637_transmission_start();

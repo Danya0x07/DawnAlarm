@@ -24,6 +24,18 @@ void tm1637_display_dec(int16_t number, bool dots);
  * dots == 1: отображать двоеточие, 0: не отображать. */
 void tm1637_display_chars(const enum tm_charset[4], bool dots);
 
+/* Отображает последовательность из 4х пользовательских символов.
+ *
+ *     A        Формат: XGFEDCBA
+ *    ---       Х для 2-го слева разряда отвечает за двоеточие.
+ * F |   | B
+ *    -G-
+ * E |   | C
+ *    ---
+ *     D
+ */
+void tm1637_display_custom(uint8_t disp_content[4]);
+
 /* Переключает состояние дисплея,
  * displaying == 1: сегменты светятся, 0: не светятся. */
 void tm1637_set_displaying(bool displaying);
