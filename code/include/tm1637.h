@@ -41,7 +41,10 @@ void tm1637_display_custom(uint8_t disp_content[4]);
 void tm1637_set_displaying(bool displaying);
 
 /* Устанавливает яркость дисплея.
- * brightness = [0; 7] */
+ * brightness = [0; 7]
+ * В качестве побочного эффекта включает дисплей, если он был выключен. */
 void tm1637_set_brightness(uint8_t brightness);
+/* Возвращает текущую яркость дисплея [0; 7]. */
+uint8_t tm1637_get_brightness(void);
 
 #endif

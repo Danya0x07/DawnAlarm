@@ -126,6 +126,11 @@ void tm1637_set_brightness(uint8_t brightness)
     tm1637_send_command(0x80 | current_brightness | (1 << 3));
 }
 
+uint8_t tm1637_get_brightness(void)
+{
+    return current_brightness;
+}
+
 static void tm1637_send_command(uint8_t command)
 {
     tm1637_transmission_start();

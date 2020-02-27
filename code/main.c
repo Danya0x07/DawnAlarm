@@ -25,7 +25,7 @@ static void update_display_brightness(uint16_t current_time);
 static void handle_alarm(const struct options *, uint16_t current_time);
 static void perform_disko(void);
 
-static void set_user_brightness(enum color);
+static void set_user_tape_brightness(enum color);
 static enum menu_item take_user_menu_item(void);
 static uint16_t take_user_time_value(bool dots);
 static uint8_t take_user_dawn_duration(void);
@@ -38,7 +38,7 @@ int main(void)
     sys_setup();
     input_setup();
     tm1637_gpio_setup();
-    tm1637_set_displaying(TRUE);
+    tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
     eeprom_load(&opts);
     dawn_setup(opts.dawn_duration);
     current_time = ds1307_get_time();
@@ -46,6 +46,8 @@ int main(void)
     while (TRUE) {
         if (btn_pressed()) {
             if (btn_pressed_again()) {  // Двукратное нажатие - вход в меню.
+                uint8_t prev_brightness = tm1637_get_brightness();
+                tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
                 switch (take_user_menu_item())
                 {
                 case ITEM_ALARMSETUP:
@@ -56,9 +58,9 @@ int main(void)
                     alarm_active = TRUE;
                     break;
                 case ITEM_COLORSETUP:
-                    set_user_brightness(COLOR_RED);
-                    set_user_brightness(COLOR_GREEN);
-                    set_user_brightness(COLOR_BLUE);
+                    set_user_tape_brightness(COLOR_RED);
+                    set_user_tape_brightness(COLOR_GREEN);
+                    set_user_tape_brightness(COLOR_BLUE);
                     break;
                 case ITEM_DISKO:
                     perform_disko();
@@ -70,6 +72,7 @@ int main(void)
                 case ITEM_CANCEL:
                     break;
                 }
+                tm1637_set_brightness(prev_brightness);
                 // если долго копались в меню, не помешает обновить текущее время.
                 current_time = ds1307_get_time();
             } else {  // Однократное нажатие - или ничего, или выкл светодиоды.
@@ -154,6 +157,7 @@ static void update_display_brightness(uint16_t current_time)
     static bool _night = 0;
     bool night = (current_time >= 2000 && current_time < 2400) ||
                  (current_time < 600);
+    night &= !rgbtape_is_active();
     if (night != _night){
         if (night)
             tm1637_set_brightness(TM_NIGHT_BRIGHTNESS);
@@ -201,7 +205,7 @@ static void perform_disko(void)
         for (i = 0; i < RGB_MAX_VALUE + 1 && !btn_is_pressed(); i++) {
             rgbtape_set(incr_color, i);
             rgbtape_set(decr_color, RGB_MAX_VALUE - i);
-            delay_ms(20);
+            delay_ms(10);
         }
         decr_color = incr_color;
         incr_color = rgbtape_change_color(incr_color);
@@ -211,7 +215,7 @@ static void perform_disko(void)
     rgbtape_set_B(0);
 }
 
-static void set_user_brightness(enum color c)
+static void set_user_tape_brightness(enum color c)
 {
     uint8_t val = 0, _val = 0;
     enum tm_charset disp_content[4] = {TM_CLEAR, 0, 0, 0};
