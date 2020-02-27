@@ -20,7 +20,7 @@
      ---
       D
 */
-const uint8_t tm_font[] = {
+const uint8_t tm_digits[0x10] = {
 //    XGFEDCBA
     0b00111111,  // 0
     0b00000110,  // 1
@@ -38,17 +38,6 @@ const uint8_t tm_font[] = {
     0b01011110,  // d
     0b01111001,  // E
     0b01110001,  // F
-    0b01110110,  // H
-    0b00110000,  // I
-    0b00111000,  // L
-    0b01110011,  // P
-    0b01100111,  // q
-    0b00110001,  // r
-    0b00111110,  // U
-    0b01000000,  // -
-    0b00001000,  // _
-    0b01100011,  // градус
-    0b00000000,  // пустота
 };
 
 static uint8_t current_brightness = TM_DEFAULT_BRIGHTNESS;
@@ -80,38 +69,27 @@ void tm1637_display_dec(int16_t number, bool dots)
         number = -999;
     sequence[0] = 0xC0;  // адрес 1-го сегмента
     if (number < 0) {
-        sequence[1] = tm_font[TM_MINUS];
+        sequence[1] = TM_MINUS;
         number = -number;
     }
     else {
-        sequence[1] = tm_font[number / 1000];
+        sequence[1] = tm_digits[number / 1000];
     }
-    sequence[2] = tm_font[(number %= 1000) / 100] | dots << 7;
-    sequence[3] = tm_font[(number %= 100) / 10];
-    sequence[4] = tm_font[(number %= 10)];
+    sequence[2] = tm_digits[(number %= 1000) / 100] | dots << 7;
+    sequence[3] = tm_digits[(number %= 100) / 10];
+    sequence[4] = tm_digits[(number %= 10)];
     tm1637_send_command(0x40);  // автосдвиг курсора
     tm1637_send_sequence(sequence, sizeof(sequence));
 }
 
-void tm1637_display_chars(const enum tm_charset ch[4], bool dots)
+void tm1637_display_content(uint8_t content[4])
 {
     uint8_t i;
     tm1637_send_command(0x40);  // автосдвиг курсора
     tm1637_transmission_start();
     tm1637_write_byte(0xC0);  // адрес 1-го сегмента
     for (i = 0; i < 4; i++)
-        tm1637_write_byte(tm_font[ch[i]] | dots << 7);
-    tm1637_transmission_stop();
-}
-
-void tm1637_display_custom(uint8_t disp_content[4])
-{
-    uint8_t i;
-    tm1637_send_command(0x40);  // автосдвиг курсора
-    tm1637_transmission_start();
-    tm1637_write_byte(0xC0);  // адрес 1-го сегмента
-    for (i = 0; i < 4; i++)
-        tm1637_write_byte(disp_content[i]);
+        tm1637_write_byte(content[i]);
     tm1637_transmission_stop();
 }
 

@@ -198,14 +198,14 @@ static void perform_disko(void)
     enum color decr_color = COLOR_RED;
     uint8_t smiley[4] = {0x18, 0xEB, 0x6B, 0x0C};
     uint16_t i;
-    tm1637_display_custom(smiley);
+    tm1637_display_content(smiley);
     while (btn_is_pressed());
     delay_ms(10);  // кнопочный дребезг
     while (!btn_is_pressed()) {
         for (i = 0; i < RGB_MAX_VALUE + 1 && !btn_is_pressed(); i++) {
             rgbtape_set(incr_color, i);
             rgbtape_set(decr_color, RGB_MAX_VALUE - i);
-            delay_ms(10);
+            delay_ms(20);
         }
         decr_color = incr_color;
         incr_color = rgbtape_change_color(incr_color);
@@ -218,14 +218,14 @@ static void perform_disko(void)
 static void set_user_tape_brightness(enum color c)
 {
     uint8_t val = 0, _val = 0;
-    enum tm_charset disp_content[4] = {TM_CLEAR, 0, 0, 0};
+    uint8_t disp_content[4] = {TM_CLEAR, TM_0, TM_0, TM_0};
     while (!btn_pressed()) {
         val = potentiometer_get(RGB_MAX_VALUE + 1);
         if (val != _val) {
-            disp_content[1] = val / 100;
-            disp_content[2] = (val / 10) % 10;
-            disp_content[3] = val % 10;
-            tm1637_display_chars(disp_content, FALSE);
+            disp_content[1] = tm_digits[val / 100];
+            disp_content[2] = tm_digits[(val / 10) % 10];
+            disp_content[3] = tm_digits[val % 10];
+            tm1637_display_content(disp_content);
             rgbtape_set(c, val);
             _val = val;
         }
@@ -236,7 +236,7 @@ static void set_user_tape_brightness(enum color c)
 static enum menu_item take_user_menu_item(void)
 {
     enum menu_item item = 0, _item = 0;
-    enum tm_charset menu[ITEMS_TOTAL][4] = {
+    uint8_t menu[ITEMS_TOTAL][4] = {
         {TM_A, TM_L, TM_A, TM_r},
         {TM_CLEAR, TM_C, TM_0, TM_L},
         {TM_d, TM_I, TM_C, TM_0},
@@ -247,7 +247,7 @@ static enum menu_item take_user_menu_item(void)
     while (!btn_pressed()) {
         item = potentiometer_get(ITEMS_TOTAL);
         if (item != _item) {
-            tm1637_display_chars(menu[item], FALSE);
+            tm1637_display_content(menu[item]);
             _item = item;
         }
     }
@@ -280,13 +280,13 @@ static uint16_t take_user_time_value(bool dots)
 static uint8_t take_user_dawn_duration(void)
 {
     uint8_t dawn_duration = 0, _dawn_duration = 0;
-    enum tm_charset disp_content[4] = {TM_d, TM_d, 0, 0};
+    uint8_t disp_content[4] = {TM_d, TM_d, TM_0, TM_0};
     while (!btn_pressed()) {
-        dawn_duration = potentiometer_get(16);
+        dawn_duration = potentiometer_get(16) + 5;  // от 5 до 20 минут
         if (dawn_duration != _dawn_duration) {
-            disp_content[2] = dawn_duration / 10;
-            disp_content[3] = dawn_duration % 10;
-            tm1637_display_chars(disp_content, FALSE);
+            disp_content[2] = tm_digits[dawn_duration / 10];
+            disp_content[3] = tm_digits[dawn_duration % 10];
+            tm1637_display_content(disp_content);
             _dawn_duration = dawn_duration;
         }
         delay_ms(10);
