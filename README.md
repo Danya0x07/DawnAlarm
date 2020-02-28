@@ -1,8 +1,7 @@
 # DawnAlarm
 прошивка для минималистичного, но многофункционального будильника-рассвета-часов-светомузыки-rgb_лампы.
 
-<img src="./image1.jpg" width="400">
-<img src="./image2.jpg" width="400">
+<img src="./image1.jpg" width="400"> <img src="./image2.jpg" width="400">
 
 ### Компоненты
 - микроконтроллер STM8S103F3P6;
