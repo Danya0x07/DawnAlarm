@@ -137,8 +137,8 @@ static void update_time(uint16_t *current_time)
 {
     static uint8_t pulse_counter = 0;
     static bool dots = FALSE, _sq_state = FALSE;
-
     bool sq_state = ds1307_sqwout_is_1();
+
     if (sq_state != _sq_state) {
         pulse_counter++;
         // Состояние пина SQW/OUT меняется 2 раза в секунду,
@@ -194,7 +194,7 @@ static void handle_alarm(const struct options *opts, uint16_t current_time)
 
 static void perform_disko(void)
 {
-    enum color incr_color = COLOR_BLUE;
+    enum color incr_color = COLOR_GREEN;
     enum color decr_color = COLOR_RED;
     uint8_t smiley[4] = {0x18, 0xEB, 0x6B, 0x0C};
     uint16_t i;
@@ -219,6 +219,7 @@ static void set_user_tape_brightness(enum color c)
 {
     uint8_t val = 0, _val = 0;
     uint8_t disp_content[4] = {TM_CLEAR, TM_0, TM_0, TM_0};
+
     while (!btn_pressed()) {
         val = potentiometer_get(RGB_MAX_VALUE + 1);
         if (val != _val) {
@@ -235,7 +236,7 @@ static void set_user_tape_brightness(enum color c)
 
 static enum menu_item take_user_menu_item(void)
 {
-    enum menu_item item = 0, _item = 0;
+    enum menu_item item = 0, _item = (enum menu_item)0xFF;
     uint8_t menu[ITEMS_TOTAL][4] = {
         {TM_A, TM_L, TM_A, TM_r},
         {TM_CLEAR, TM_C, TM_0, TM_L},
@@ -250,6 +251,7 @@ static enum menu_item take_user_menu_item(void)
             tm1637_display_content(menu[item]);
             _item = item;
         }
+        delay_ms(10);
     }
     return item;
 }
@@ -257,7 +259,8 @@ static enum menu_item take_user_menu_item(void)
 static uint16_t take_user_time_value(bool dots)
 {
     uint8_t hours = 0, minutes = 0;
-    uint8_t _hours = 0, _minutes = 0;
+    uint8_t _hours = 0xFF, _minutes = 0xFF;
+
     while (!btn_pressed()) {
         hours = potentiometer_get(24);
         if (hours != _hours) {
@@ -279,8 +282,9 @@ static uint16_t take_user_time_value(bool dots)
 
 static uint8_t take_user_dawn_duration(void)
 {
-    uint8_t dawn_duration = 0, _dawn_duration = 0;
+    uint8_t dawn_duration = 0, _dawn_duration = 0xFF;
     uint8_t disp_content[4] = {TM_d, TM_d, TM_0, TM_0};
+
     while (!btn_pressed()) {
         dawn_duration = potentiometer_get(16) + 5;  // от 5 до 20 минут
         if (dawn_duration != _dawn_duration) {
