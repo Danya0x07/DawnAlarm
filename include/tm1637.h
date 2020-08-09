@@ -1,7 +1,7 @@
 #ifndef TM1637_H_INCLUDED
 #define TM1637_H_INCLUDED
 
-#include <stm8s.h>
+#include "halutils.h"
 
 #define TM_DEFAULT_BRIGHTNESS   7
 #define TM_NIGHT_BRIGHTNESS     0

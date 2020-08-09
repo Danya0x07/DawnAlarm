@@ -1,7 +1,7 @@
-#ifndef DS1307_H_INCLUDED
-#define DS1307_H_INCLUDED
+#ifndef _DS1307_H
+#define _DS1307_H
 
-#include <stm8s.h>
+#include "halutils.h"
 
 /*
  * Формат времени для данной библиотеки: 4-хзначное число HHMM, где
@@ -13,4 +13,4 @@ void ds1307_set_time(uint16_t time);
 
 #define ds1307_sqwout_is_1()    ((GPIOC->IDR & GPIO_PIN_3) != 0)  // SQW/OUT
 
-#endif
+#endif  // _DS1307_H

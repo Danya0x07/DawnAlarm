@@ -1,17 +1,13 @@
-#include "utils.h"
+#include "halutils.h"
 
-static volatile uint16_t time = 0;
-
-void delay_ms(uint16_t us)
+void delay_ms(uint16_t ms)
 {
-    time = 0;
-    while (time < us);
-}
-
-void __delay_irq_handler(void) __interrupt(23)
-{
-    time++;
-    TIM4->SR1 = (uint8_t) ~TIM4_IT_UPDATE;
+    while (ms--) {
+        // задержка на 1ms
+        tim4_set_counter(0);
+        while (tim4_get_counter() < 125)
+            ;
+    }
 }
 
 void i2c_mem_write(uint8_t slave_addr, uint8_t *data, uint8_t count)

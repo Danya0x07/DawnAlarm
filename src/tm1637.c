@@ -1,15 +1,15 @@
 #include "tm1637.h"
-#include "utils.h"
+#include "halutils.h"
 
-#define TM_GPIO_PORT    GPIOA
-#define TM_DIN_PIN  GPIO_PIN_2
-#define TM_CLK_PIN  GPIO_PIN_3
+#define TM1637_GPORT        GPIOA
+#define TM1637_DIN_GPIN     GPIO_PIN_2
+#define TM1637_CLK_GPIN     GPIO_PIN_3
 
-#define tm_clk_0()  (TM_GPIO_PORT->ODR &= ~TM_CLK_PIN)
-#define tm_clk_1()  (TM_GPIO_PORT->ODR |= TM_CLK_PIN)
-#define tm_din_0()  (TM_GPIO_PORT->ODR &= ~TM_DIN_PIN)
-#define tm_din_1()  (TM_GPIO_PORT->ODR |= TM_DIN_PIN)
-#define tm_din_is_1()   (TM_GPIO_PORT->ODR & TM_DIN_PIN)
+#define _clk_low()  (TM1637_GPORT->ODR &= ~TM1637_CLK_GPIN)
+#define _clk_high() (TM1637_GPORT->ODR |= TM1637_CLK_GPIN)
+#define _din_low()  (TM1637_GPORT->ODR &= ~TM1637_DIN_GPIN)
+#define _din_high() (TM1637_GPORT->ODR |= TM1637_DIN_GPIN)
+#define _din_is_high()  (TM1637_GPORT->ODR & TM1637_DIN_GPIN)
 
 /*
       A
@@ -56,13 +56,14 @@ static inline void tm1637_transmission_handle_ack(void);
 
 void tm1637_gpio_setup(void)
 {
-    TM_GPIO_PORT->DDR |= TM_CLK_PIN | TM_DIN_PIN;
-    TM_GPIO_PORT->ODR |= TM_CLK_PIN | TM_DIN_PIN;
+    TM1637_GPORT->DDR |= TM1637_CLK_GPIN | TM1637_DIN_GPIN;
+    TM1637_GPORT->ODR |= TM1637_CLK_GPIN | TM1637_DIN_GPIN;
 }
 
 void tm1637_display_dec(int16_t number, bool dots)
 {
     uint8_t sequence[5] = {0};
+
     if (number > 9999)
         number = 9999;
     else if (number < -999)
@@ -85,6 +86,7 @@ void tm1637_display_dec(int16_t number, bool dots)
 void tm1637_display_content(uint8_t content[4])
 {
     uint8_t i;
+
     tm1637_send_command(0x40);  // автосдвиг курсора
     tm1637_transmission_start();
     tm1637_write_byte(0xC0);  // адрес 1-го сегмента
@@ -119,6 +121,7 @@ static void tm1637_send_command(uint8_t command)
 static void tm1637_send_sequence(const uint8_t sequence[], uint8_t count)
 {
     uint8_t i;
+
     tm1637_transmission_start();
     for (i = 0; i < count; i++) {
         tm1637_write_byte(sequence[i]);
@@ -129,15 +132,16 @@ static void tm1637_send_sequence(const uint8_t sequence[], uint8_t count)
 static void tm1637_write_byte(uint8_t data)
 {
     uint8_t i;
+
     for (i = 0; i < 8; i++) {
-        tm_clk_0();
+        _clk_low();
         if (data & 1)
-            tm_din_1();
+            _din_high();
         else
-            tm_din_0();
+            _din_low();
         data >>= 1;
         delay_ms(1);
-        tm_clk_1();
+        _clk_high();
         delay_ms(1);
     }
     tm1637_transmission_handle_ack();
@@ -145,31 +149,31 @@ static void tm1637_write_byte(uint8_t data)
 
 static void tm1637_transmission_start(void)
 {
-    tm_clk_1();
-    tm_din_1();
+    _clk_high();
+    _din_high();
     delay_ms(1);
-    tm_din_0();
+    _din_low();
 }
 
 static void tm1637_transmission_stop(void)
 {
-    tm_clk_0();
+    _clk_low();
     delay_ms(1);
-    tm_din_0();
+    _din_low();
     delay_ms(1);
-    tm_clk_1();
+    _clk_high();
     delay_ms(1);
-    tm_din_1();
+    _din_high();
 }
 
 static inline void tm1637_transmission_handle_ack(void)
 {
-    tm_clk_0();
+    _clk_low();
     delay_ms(1);
-    tm_din_0();
-    while (tm_din_is_1());
-    tm_din_1();
-    tm_clk_1();
+    _din_low();
+    while (_din_is_high());
+    _din_high();
+    _clk_high();
     delay_ms(1);
-    tm_clk_0();
+    _clk_low();
 }
