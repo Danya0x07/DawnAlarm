@@ -6,8 +6,8 @@
 #define REDBLUE_DIFFERENCE  50
 #define BRIGHTNESS_FADE 1
 
-static volatile uint16_t red, green, blue;
-static volatile uint8_t brightness_step_delay;
+static uint16_t red, green, blue;
+static uint8_t brightness_step_delay;
 
 void dawn_setup(uint8_t duration)
 {
@@ -34,12 +34,11 @@ void dawn_stop(void)
     TIM2->CR1 &= ~TIM2_CR1_CEN;
 }
 
-INTERRUPT_HANDLER(dawn_irg, 13)
+void dawn_update(void)
 {
-    static volatile uint8_t counter = 0;
+    static uint8_t counter = 0;
 
-    counter++;
-    if (counter >= brightness_step_delay) {
+    if (++counter >= brightness_step_delay) {
         red += BRIGHTNESS_FADE;
         if (red > REDGREEN_DIFFERENCE)
             green += BRIGHTNESS_FADE;
@@ -52,13 +51,13 @@ INTERRUPT_HANDLER(dawn_irg, 13)
             green = RGB_MAX_VALUE;
         if (blue > RGB_MAX_VALUE) {  // синий набирает яркость последним
             blue = RGB_MAX_VALUE;
+#if (DAWNALARM_MK == 2)
             BUZZER_GPORT->ODR |= BUZZER_GPIN;
+#endif
         }
         rgbstrip_set_R(red);
         rgbstrip_set_G(green);
         rgbstrip_set_B(blue);
         counter = 0;
     }
-
-    TIM2->SR1 = (uint8_t) ~TIM2_IT_UPDATE;
 }

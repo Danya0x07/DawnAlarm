@@ -6,22 +6,12 @@
 #define tim4_set_counter(value)     (TIM4->CNTR = (value))
 #define tim4_get_counter()  (TIM4->CNTR)
 
-/* Миллисекундная задержка. */
-void delay_ms(uint16_t);
+void delay_ms(uint16_t ms);
 
-/*
- * Записывает блок памяти data размером count байт
- * в устройство с адресом slave_addr.
- */
-void i2c_mem_write(uint8_t slave_addr, uint8_t *data, uint8_t count);
+#define I2C_NOSTART (1 << 0)
+#define I2C_NOSTOP  (1 << 1)
 
-/* Принимает count байт в массив buffer от устройства с адресом slave_addr. */
-void i2c_mem_read(uint8_t slave_addr, uint8_t *buffer, uint8_t count);
-
-/*
- * Устанавливает адрес памяти mem_addr длиной addr_size, с которого будет
- * происходить запись/чтение в устройстве с I2C адресом slave_addr.
- */
-void i2c_set_mem_ptr(uint8_t slave_addr, uint8_t *mem_addr, uint8_t addr_size);
+void i2c_write_bytes(uint8_t addr, const uint8_t *data, uint8_t len, uint8_t flags);
+void i2c_read_bytes(uint8_t addr, uint8_t *data, uint8_t len);
 
 #endif  // _HALUTILS_H

@@ -8,7 +8,6 @@
 
 void dawn_setup(uint8_t duration);
 void dawn_stop(void);
-
-INTERRUPT_HANDLER(dawn_irg, 13);
+void dawn_update(void);
 
 #endif  // _DAWN_H

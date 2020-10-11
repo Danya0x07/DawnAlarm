@@ -30,7 +30,7 @@ void ds1307_setup(uint16_t time)
         0,  // год (не используется)
         DS_SQWE  // вывод секунд на пин
     };
-    i2c_mem_write(DS1307_ADDRESS, settings, sizeof(settings));
+    i2c_write_bytes(DS1307_ADDRESS, settings, sizeof(settings), 0);
 }
 
 uint16_t ds1307_get_time(void)
@@ -38,8 +38,8 @@ uint16_t ds1307_get_time(void)
     uint8_t current_time[2] = {0};
     uint8_t mem_address = 0x01;
 
-    i2c_set_mem_ptr(DS1307_ADDRESS, &mem_address, sizeof(mem_address));
-    i2c_mem_read(DS1307_ADDRESS, current_time, sizeof(current_time));
+    i2c_write_bytes(DS1307_ADDRESS, &mem_address, 1, I2C_NOSTOP);
+    i2c_read_bytes(DS1307_ADDRESS, current_time, sizeof(current_time));
     current_time[0] = convert_from_bindec(current_time[0]);
     current_time[1] = convert_from_bindec(current_time[1]);
     return (uint16_t) current_time[1] * 100 + current_time[0];
@@ -53,5 +53,5 @@ void ds1307_set_time(uint16_t time)
         convert_to_bindec(time % 100),  // минуты
         convert_to_bindec(time / 100),  // часы
     };
-    i2c_mem_write(DS1307_ADDRESS, settings, sizeof(settings));
+    i2c_write_bytes(DS1307_ADDRESS, settings, sizeof(settings), 0);
 }

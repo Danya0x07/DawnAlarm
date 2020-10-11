@@ -14,6 +14,15 @@
 #define BUTTON_GPORT    GPIOA
 #define BUTTON_GPIN     GPIO_PIN_1
 
+// Выводы 4х-разрядного 7-сегментного дисплея
+#define TM1637_GPORT        GPIOA
+#define TM1637_DIN_GPIN     GPIO_PIN_2
+#define TM1637_CLK_GPIN     GPIO_PIN_3
+
+// Вывод меандра с часов реального времени.
+#define RTC_SQW_OUT_GPORT   GPIOC
+#define RTC_SQW_OUT_GPIN    GPIO_PIN_3
+
 #if (DAWNALARM_MK == 1)
     #define UNUSED_PINS_OF_PORTC   (GPIO_PIN_5)
     #ifdef DEBUG

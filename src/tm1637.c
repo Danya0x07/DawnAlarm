@@ -1,9 +1,5 @@
 #include "tm1637.h"
-#include "halutils.h"
-
-#define TM1637_GPORT        GPIOA
-#define TM1637_DIN_GPIN     GPIO_PIN_2
-#define TM1637_CLK_GPIN     GPIO_PIN_3
+#include "config.h"
 
 #define _clk_low()  (TM1637_GPORT->ODR &= ~TM1637_CLK_GPIN)
 #define _clk_high() (TM1637_GPORT->ODR |= TM1637_CLK_GPIN)
@@ -53,12 +49,6 @@ static void tm1637_write_byte(uint8_t);
 static void tm1637_transmission_start(void);
 static void tm1637_transmission_stop(void);
 static inline void tm1637_transmission_handle_ack(void);
-
-void tm1637_gpio_setup(void)
-{
-    TM1637_GPORT->DDR |= TM1637_CLK_GPIN | TM1637_DIN_GPIN;
-    TM1637_GPORT->ODR |= TM1637_CLK_GPIN | TM1637_DIN_GPIN;
-}
 
 void tm1637_display_dec(int16_t number, bool dots)
 {
