@@ -39,7 +39,7 @@ uint16_t ds1307_get_time(void)
     uint8_t mem_address = 0x01;
 
     i2c_write_bytes(DS1307_ADDRESS, &mem_address, 1, I2C_NOSTOP);
-    i2c_read_bytes(DS1307_ADDRESS, current_time, sizeof(current_time));
+    i2c_read_bytes(DS1307_ADDRESS, current_time, sizeof(current_time), 0);
     current_time[0] = convert_from_bindec(current_time[0]);
     current_time[1] = convert_from_bindec(current_time[1]);
     return (uint16_t) current_time[1] * 100 + current_time[0];

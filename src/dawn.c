@@ -19,7 +19,7 @@ void dawn_setup(uint8_t duration)
      * таймера_2 уменьшаем в 4 раза. Этим мы уменьшаем влияние погрешности
      * целочисленного деления.
      */
-    brightness_step_delay = (uint16_t) duration * 60 * 4 / RGB_MAX_VALUE;
+    brightness_step_delay = (uint16_t) duration * 60 * 4 / (RGB_MAX_VALUE + REDBLUE_DIFFERENCE);
 }
 
 void dawn_stop(void)

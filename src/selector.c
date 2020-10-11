@@ -3,9 +3,6 @@
 
 #if (DAWNALARM_MK == 1)
 
-#define disable_encoder_irq()
-#define enable_encoder_irq()
-
 #define ADC_ADJUST_SHIFT    (-15)
 
 static int16_t bd_min, bd_max, current;
@@ -32,12 +29,9 @@ static void potentiometer_update(void)
 
 static volatile int16_t bd_min, bd_max, current;
 
-#define disable_encoder_irq()   (ENCODER_GPORT->CR2 &= ~ENCODER_CHA_GPIN)
-#define enable_encoder_irq()    (ENCODER_GPORT->CR2 |= ENCODER_CHA_GPIN)
-
 INTERRUPT_HANDLER(encoder_irq, ITC_IRQ_PORTD)
 {
-    disable_encoder_irq();
+    selector_irq_off();
 
     delay_ms(2);
     if (!(ENCODER_GPORT->IDR & ENCODER_CHA_GPIN))
@@ -54,17 +48,17 @@ INTERRUPT_HANDLER(encoder_irq, ITC_IRQ_PORTD)
         current = bd_min;
 
 out:
-    enable_encoder_irq();
+    selector_irq_on();
 }
-#endif
+#endif  // DAWNALARM_MK
 
 void selector_set(int16_t _min, int16_t _max, int16_t _current)
 {
-    disable_encoder_irq();
+    selector_irq_off();
     bd_min = _min;
     bd_max = _max;
     current = _current;
-    enable_encoder_irq();
+    selector_irq_on();
 }
 
 int16_t selector_get(void)

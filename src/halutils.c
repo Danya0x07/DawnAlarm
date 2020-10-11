@@ -56,7 +56,8 @@ void i2c_write_bytes(uint8_t addr, const uint8_t *data, uint8_t len,
         i2c_stop();
 }
 
-void i2c_read_bytes(uint8_t addr, uint8_t *data, uint8_t len)
+void i2c_read_bytes(uint8_t addr, uint8_t *data, uint8_t len, 
+                    uint8_t flags)
 {
     if (!(flags & I2C_NOSTART))
         i2c_start(addr, I2C_DIRECTION_RX);

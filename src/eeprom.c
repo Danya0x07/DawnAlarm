@@ -20,5 +20,5 @@ void eeprom_load(struct options *opts)
     i2c_write_bytes(AT24C32_ADDRESS, (const uint8_t *)&opts->__eeprom_addr, 
                     sizeof(opts->__eeprom_addr), I2C_NOSTOP);
     i2c_read_bytes(AT24C32_ADDRESS, (uint8_t *)opts + sizeof(opts->__eeprom_addr),
-                   sizeof(*opts) - sizeof(opts->__eeprom_addr));
+                   sizeof(*opts) - sizeof(opts->__eeprom_addr), 0);
 }

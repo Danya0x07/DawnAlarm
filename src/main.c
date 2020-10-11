@@ -78,7 +78,7 @@ int main(void)
                     break;
                 case ITEM_CLOCKSETUP:
                     current_time = take_user_time_value(TRUE);
-                    ds1307_setup(current_time);
+                    ds1307_set_time(current_time);
                     break;
                 case ITEM_CANCEL:
                     break;
@@ -135,7 +135,6 @@ static void sys_setup(void)
 #if (DAWNALARM_MK == 2)
     BUTTON_GPORT->CR1 |= BUTTON_GPIN;  // MK1 has external pulldown.
     ENCODER_GPORT->CR1 |= ENCODER_CHA_GPIN | ENCODER_CHB_GPIN;
-    ENCODER_GPORT->CR2 |= ENCODER_CHA_GPIN;
     BUZZER_GPORT->DDR |= BUZZER_GPIN;
     BUZZER_GPORT->CR1 |= BUZZER_GPIN;
 #endif
@@ -298,6 +297,7 @@ static void set_user_tape_brightness(enum color c)
     uint8_t disp_content[4] = {TM_CLEAR, TM_0, TM_0, TM_0};
 
     selector_set(0, RGB_MAX_VALUE, 0);
+    selector_irq_on();
     while (!btn_pressed()) {
         val = selector_get();
         if (val != _val) {
@@ -310,6 +310,7 @@ static void set_user_tape_brightness(enum color c)
         }
         delay_ms(10);
     }
+    selector_irq_off();
 }
 
 static enum menu_item take_user_menu_item(void)
@@ -324,6 +325,7 @@ static enum menu_item take_user_menu_item(void)
     };
 
     selector_set(0, ITEMS_TOTAL - 1, ITEM_ALARMSETUP);
+    selector_irq_on();
     while (!btn_pressed()) {
         item = selector_get();
         if (item != prev_item) {
@@ -332,6 +334,7 @@ static enum menu_item take_user_menu_item(void)
         }
         delay_ms(10);
     }
+    selector_irq_off();
     return item;
 }
 
@@ -341,6 +344,7 @@ static uint16_t take_user_time_value(bool dots)
     uint8_t _hours = 0xFF, _minutes = 0xFF;
 
     selector_set(0, 23, current_time / 100);
+    selector_irq_on();
     while (!btn_pressed()) {
         hours = selector_get();
         if (hours != _hours) {
@@ -359,6 +363,7 @@ static uint16_t take_user_time_value(bool dots)
         }
         delay_ms(10);
     }
+    selector_irq_off();
     return hours * 100 + minutes;
 }
 
@@ -368,6 +373,7 @@ static uint8_t take_user_dawn_duration(void)
     uint8_t disp_content[4] = {TM_d, TM_d, TM_0, TM_0};
 
     selector_set(5, 20, 20);
+    selector_irq_on();
     while (!btn_pressed()) {
         dawn_duration = selector_get();
         if (dawn_duration != _dawn_duration) {
@@ -378,5 +384,6 @@ static uint8_t take_user_dawn_duration(void)
         }
         delay_ms(10);
     }
+    selector_irq_off();
     return dawn_duration;
 }

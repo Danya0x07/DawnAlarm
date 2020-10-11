@@ -12,6 +12,6 @@ void delay_ms(uint16_t ms);
 #define I2C_NOSTOP  (1 << 1)
 
 void i2c_write_bytes(uint8_t addr, const uint8_t *data, uint8_t len, uint8_t flags);
-void i2c_read_bytes(uint8_t addr, uint8_t *data, uint8_t len);
+void i2c_read_bytes(uint8_t addr, uint8_t *data, uint8_t len, uint8_t flags);
 
 #endif  // _HALUTILS_H

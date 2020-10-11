@@ -20,11 +20,11 @@ bool btn_is_pressed(void)
 bool btn_pressed(void)
 {
     bool pressed = FALSE;
-    bool current_state = btn_is_pressed();
+    bool current_state = !!(BUTTON_GPORT->IDR & BUTTON_GPIN);
 
     if (last_state != current_state) {
         delay_ms(DEBOUNCE_DELAY_MS);
-        current_state = btn_is_pressed();
+        current_state = !!(BUTTON_GPORT->IDR & BUTTON_GPIN);
     }
 
     if (!last_state && current_state)
