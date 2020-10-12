@@ -25,6 +25,9 @@ static struct {
     binsemaphore_t update_dawn;
 } todotable;
 
+#define rtc_irq_off()   (RTC_SQW_OUT_GPORT->CR2 &= ~RTC_SQW_OUT_GPIN)
+#define rtc_irq_on()    (RTC_SQW_OUT_GPORT->CR2 |= RTC_SQW_OUT_GPIN)
+
 static bool alarm_active = TRUE;  // Используется функциями main и handle_alarm
 static uint16_t current_time;
 static struct options opts;
@@ -49,8 +52,8 @@ int main(void)
     current_time = ds1307_get_time();
 
     for (;;) {
-        if (btn_pressed()) {
-            RTC_SQW_OUT_GPORT->CR2 &= ~RTC_SQW_OUT_GPIN;
+        if (button_pressed()) {
+            rtc_irq_off();
 
             if (dawn_is_started() || rgbstrip_is_active()) {
                 alarm_active = FALSE;
@@ -90,7 +93,7 @@ int main(void)
                 current_time = ds1307_get_time();
             }
 
-            RTC_SQW_OUT_GPORT->CR2 |= RTC_SQW_OUT_GPIN;
+            rtc_irq_on();
         }
 
         if (todotable.update_display) {
@@ -195,13 +198,7 @@ static void sys_setup(void)
 
 INTERRUPT_HANDLER(clock_dots_irq, ITC_IRQ_PORTC)
 {
-    RTC_SQW_OUT_GPORT->CR2 &= ~RTC_SQW_OUT_GPIN;
-    delay_ms(1);
-    if (!(RTC_SQW_OUT_GPORT->IDR & RTC_SQW_OUT_GPIN))
-        goto out;
     todotable.update_display = 1;
-out:
-    RTC_SQW_OUT_GPORT->CR2 |= RTC_SQW_OUT_GPIN;
 }
 
 INTERRUPT_HANDLER(dawn_increase_irg, 13)
@@ -224,17 +221,17 @@ static void update_time(void)
 
 static void update_display_brightness(void)
 {
-    static bool prev_night = 0;
+    static bool _night = 0;
     bool night = ((current_time >= 2000 && current_time < 2400) ||
                   (current_time < 600));
     night &= !rgbstrip_is_active();
 
-    if (night != prev_night){
+    if (night != _night){
         if (night)
             tm1637_set_brightness(TM_NIGHT_BRIGHTNESS);
         else
             tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
-        prev_night = night;
+        _night = night;
     }
 }
 
@@ -274,11 +271,11 @@ static void perform_disko(void)
     uint16_t i;
 
     tm1637_display_content(smiley);
-    while (btn_is_pressed());
+    while (button_is_pressed());
     delay_ms(10);  // кнопочный дребезг
 
-    while (!btn_is_pressed()) {
-        for (i = 0; i < RGB_MAX_VALUE + 1 && !btn_is_pressed(); i++) {
+    while (!button_is_pressed()) {
+        for (i = 0; i < RGB_MAX_VALUE + 1 && !button_is_pressed(); i++) {
             rgbstrip_set(incr_color, i);
             rgbstrip_set(decr_color, RGB_MAX_VALUE - i);
             delay_ms(20);
@@ -298,7 +295,7 @@ static void set_user_tape_brightness(enum color c)
 
     selector_set(0, RGB_MAX_VALUE, 0);
     selector_irq_on();
-    while (!btn_pressed()) {
+    while (!button_pressed()) {
         val = selector_get();
         if (val != _val) {
             disp_content[1] = tm_digits[val / 100];
@@ -326,7 +323,7 @@ static enum menu_item take_user_menu_item(void)
 
     selector_set(0, ITEMS_TOTAL - 1, ITEM_ALARMSETUP);
     selector_irq_on();
-    while (!btn_pressed()) {
+    while (!button_pressed()) {
         item = selector_get();
         if (item != prev_item) {
             tm1637_display_content(menu[item]);
@@ -345,7 +342,7 @@ static uint16_t take_user_time_value(bool dots)
 
     selector_set(0, 23, current_time / 100);
     selector_irq_on();
-    while (!btn_pressed()) {
+    while (!button_pressed()) {
         hours = selector_get();
         if (hours != _hours) {
             tm1637_display_dec(hours * 100 + minutes, dots);
@@ -355,7 +352,7 @@ static uint16_t take_user_time_value(bool dots)
     }
 
     selector_set(0, 59, current_time % 100);
-    while (!btn_pressed()) {
+    while (!button_pressed()) {
         minutes = selector_get();
         if (minutes != _minutes) {
             tm1637_display_dec(hours * 100 + minutes, dots);
@@ -374,7 +371,7 @@ static uint8_t take_user_dawn_duration(void)
 
     selector_set(5, 20, 20);
     selector_irq_on();
-    while (!btn_pressed()) {
+    while (!button_pressed()) {
         dawn_duration = selector_get();
         if (dawn_duration != _dawn_duration) {
             disp_content[2] = tm_digits[dawn_duration / 10];
@@ -386,4 +383,47 @@ static uint8_t take_user_dawn_duration(void)
     }
     selector_irq_off();
     return dawn_duration;
+}
+
+static uint8_t parse_number(int16_t number, uint8_t *buffer)
+{
+    uint16_t i;
+    uint8_t digit;
+    uint8_t len = 0;
+
+    if (number < 0)
+        *buffer++ = TM_MINUS;
+    for (i = 1000; i > 0; i /= 10) {
+        digit = number / i;
+        if (d > 0) {
+            *buffer++ = digit;
+            number -= i * digit;
+            len++;
+        }
+    }
+    return len;
+}
+
+static void display(uint8_t *desc, int16_t number, uint8_t startpos)
+{
+    uint8_t framebuff[4];
+    uint8_t ctbuff[4];
+    uint8_t *ct = framebuff;
+    uint8_t len;
+    uint8_t i;
+
+    if (len > 4)
+        return;
+
+    for (i = 0; i < startpos; i++)
+        *ct++ = *desc++;
+
+    len = parse_number(number, ctbuff);
+    for (i = 0; i < len; i++) {
+        *ct++ = *ctbuff++;
+    }
+
+    for (i = startpos + len; i < 4; i++)
+        *ct++ = *desc++;
+    tm1637_display_content(framebuff);
 }
