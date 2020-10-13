@@ -28,7 +28,7 @@ int main(void)
 {
     sys_setup();
     ui_show_splash_screen();
-    tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
+    tm1637_set_brightness(7);
     delay_ms(1000);
     eeprom_load(&opts);
     dawn_setup(opts.dawn_duration);
@@ -44,7 +44,7 @@ int main(void)
             } else {
                 uint8_t prev_brightness = tm1637_get_brightness();
 
-                tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
+                tm1637_set_brightness(7);
                 switch (ui_get_user_menu_item())
                 {
                 case ITEM_ALARMSETUP:
@@ -199,7 +199,7 @@ static void update_time_and_display(void)
         darktime &= ((current_time >= 2000 && current_time < 2400) ||
                      (current_time < 600));
         if (darktime != prev_darktime) {
-            tm1637_set_brightness(darktime ? TM_NIGHT_BRIGHTNESS : TM_DEFAULT_BRIGHTNESS);
+            tm1637_set_brightness(darktime * 7);  // грязная оптимизация
             prev_darktime = darktime;
         }
         
