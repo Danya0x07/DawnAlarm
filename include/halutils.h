@@ -2,6 +2,7 @@
 #define _HALUTILS_H
 
 #include <stm8s.h>
+#include <stddef.h>
 
 #define tim4_set_counter(value)     (TIM4->CNTR = (value))
 #define tim4_get_counter()  (TIM4->CNTR)

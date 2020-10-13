@@ -7,45 +7,28 @@
 #include "ds1307.h"
 #include "dawn.h"
 #include "rgbstrip.h"
+#include "ui.h"
 
-enum menu_item {
-    ITEM_ALARMSETUP,
-    ITEM_COLORSETUP,
-    ITEM_DISKO,
-    ITEM_CLOCKSETUP,
-    ITEM_CANCEL,
-
-    ITEMS_TOTAL
-};
-
-typedef volatile uint8_t binsemaphore_t;
+typedef volatile uint8_t todothing_t;
 
 static struct {
-    binsemaphore_t update_display;
-    binsemaphore_t update_dawn;
+    todothing_t update_display;
+    todothing_t update_dawn;
 } todotable;
-
-#define rtc_irq_off()   (RTC_SQW_OUT_GPORT->CR2 &= ~RTC_SQW_OUT_GPIN)
-#define rtc_irq_on()    (RTC_SQW_OUT_GPORT->CR2 |= RTC_SQW_OUT_GPIN)
 
 static bool alarm_active = TRUE;  // Используется функциями main и handle_alarm
 static uint16_t current_time;
 static struct options opts;
 
 static void sys_setup(void);
-static void update_time(void);
-static void update_display_brightness(void);
+static void update_time_and_display(void);
 static void handle_alarm(void);
-static void perform_disko(void);
-
-static void set_user_tape_brightness(enum color);
-static enum menu_item take_user_menu_item(void);
-static uint16_t take_user_time_value(bool dots);
-static uint8_t take_user_dawn_duration(void);
 
 int main(void)
 {
     sys_setup();
+    ui_show_splash_screen();
+    delay_ms(1000);
     eeprom_load(&opts);
     dawn_setup(opts.dawn_duration);
     tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
@@ -62,43 +45,40 @@ int main(void)
                 uint8_t prev_brightness = tm1637_get_brightness();
 
                 tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
-                switch (take_user_menu_item())
+                switch (ui_get_user_menu_item())
                 {
                 case ITEM_ALARMSETUP:
-                    opts.alarm_time = take_user_time_value(FALSE);
-                    opts.dawn_duration = take_user_dawn_duration();
+                    opts.alarm_time = ui_get_user_time(current_time, FALSE);
+                    opts.dawn_duration = ui_get_user_dawn_duration();
                     dawn_setup(opts.dawn_duration);
                     eeprom_save(&opts);
                     alarm_active = TRUE;
                     break;
                 case ITEM_COLORSETUP:
-                    set_user_tape_brightness(COLOR_RED);
-                    set_user_tape_brightness(COLOR_GREEN);
-                    set_user_tape_brightness(COLOR_BLUE);
+                    ui_set_strip_brightness(COLOR_RED);
+                    ui_set_strip_brightness(COLOR_GREEN);
+                    ui_set_strip_brightness(COLOR_BLUE);
                     break;
                 case ITEM_DISKO:
-                    perform_disko();
+                    ui_perform_disko();
                     break;
                 case ITEM_CLOCKSETUP:
-                    current_time = take_user_time_value(TRUE);
+                    current_time = ui_get_user_time(current_time, TRUE);
                     ds1307_set_time(current_time);
                     break;
                 case ITEM_CANCEL:
                     break;
                 }
-
                 tm1637_set_brightness(prev_brightness);
 
                 // если долго копались в меню, не помешает обновить текущее время.
                 current_time = ds1307_get_time();
             }
-
             rtc_irq_on();
         }
 
         if (todotable.update_display) {
-            update_time();
-            update_display_brightness();
+            update_time_and_display();
             handle_alarm();
             todotable.update_display = 0;
         }
@@ -207,32 +187,25 @@ INTERRUPT_HANDLER(dawn_increase_irg, 13)
     TIM2->SR1 = (uint8_t) ~TIM2_IT_UPDATE;
 }
 
-static void update_time(void)
+static void update_time_and_display(void)
 {
     static uint8_t counter = 0;
     static bool dots = FALSE;
 
     if (++counter >> 1 > 10) {  // Раз в 10 секунд обновляем время.
+        static bool prev_darktime = FALSE;
+        bool darktime = rgbstrip_is_active() == FALSE;
         current_time = ds1307_get_time();
+        darktime &= ((current_time >= 2000 && current_time < 2400) ||
+                     (current_time < 600));
+        if (darktime != prev_darktime) {
+            tm1637_set_brightness(darktime ? TM_NIGHT_BRIGHTNESS : TM_DEFAULT_BRIGHTNESS);
+            prev_darktime = darktime;
+        }
+        
         counter = 0;
     }
     tm1637_display_dec(current_time, dots = !dots);
-}
-
-static void update_display_brightness(void)
-{
-    static bool _night = 0;
-    bool night = ((current_time >= 2000 && current_time < 2400) ||
-                  (current_time < 600));
-    night &= !rgbstrip_is_active();
-
-    if (night != _night){
-        if (night)
-            tm1637_set_brightness(TM_NIGHT_BRIGHTNESS);
-        else
-            tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
-        _night = night;
-    }
 }
 
 static void handle_alarm(void)
@@ -261,169 +234,4 @@ static void handle_alarm(void)
     } else {
         alarm_active = TRUE;
     }
-}
-
-static void perform_disko(void)
-{
-    enum color incr_color = COLOR_GREEN;
-    enum color decr_color = COLOR_RED;
-    uint8_t smiley[4] = {0x18, 0xEB, 0x6B, 0x0C};
-    uint16_t i;
-
-    tm1637_display_content(smiley);
-    while (button_is_pressed());
-    delay_ms(10);  // кнопочный дребезг
-
-    while (!button_is_pressed()) {
-        for (i = 0; i < RGB_MAX_VALUE + 1 && !button_is_pressed(); i++) {
-            rgbstrip_set(incr_color, i);
-            rgbstrip_set(decr_color, RGB_MAX_VALUE - i);
-            delay_ms(20);
-        }
-        decr_color = incr_color;
-        incr_color = rgbstrip_change_color(incr_color);
-    }
-    rgbstrip_set_R(0);
-    rgbstrip_set_G(0);
-    rgbstrip_set_B(0);
-}
-
-static void set_user_tape_brightness(enum color c)
-{
-    uint8_t val = 0, _val = 0;
-    uint8_t disp_content[4] = {TM_CLEAR, TM_0, TM_0, TM_0};
-
-    selector_set(0, RGB_MAX_VALUE, 0);
-    selector_irq_on();
-    while (!button_pressed()) {
-        val = selector_get();
-        if (val != _val) {
-            disp_content[1] = tm_digits[val / 100];
-            disp_content[2] = tm_digits[(val / 10) % 10];
-            disp_content[3] = tm_digits[val % 10];
-            tm1637_display_content(disp_content);
-            rgbstrip_set(c, val);
-            _val = val;
-        }
-        delay_ms(10);
-    }
-    selector_irq_off();
-}
-
-static enum menu_item take_user_menu_item(void)
-{
-    enum menuprev_item item = 0, prev_item = (enum menuprev_item)0xFF;
-    uint8_t menu[ITEMS_TOTAL][4] = {
-        {TM_A, TM_L, TM_A, TM_r},
-        {TM_CLEAR, TM_C, TM_0, TM_L},
-        {TM_d, TM_I, TM_C, TM_0},
-        {TM_C, TM_L, TM_0, TM_C},
-        {TM_0, TM_E, TM_H, TM_A}
-    };
-
-    selector_set(0, ITEMS_TOTAL - 1, ITEM_ALARMSETUP);
-    selector_irq_on();
-    while (!button_pressed()) {
-        item = selector_get();
-        if (item != prev_item) {
-            tm1637_display_content(menu[item]);
-            prev_item = item;
-        }
-        delay_ms(10);
-    }
-    selector_irq_off();
-    return item;
-}
-
-static uint16_t take_user_time_value(bool dots)
-{
-    uint8_t hours = 0, minutes = 0;
-    uint8_t _hours = 0xFF, _minutes = 0xFF;
-
-    selector_set(0, 23, current_time / 100);
-    selector_irq_on();
-    while (!button_pressed()) {
-        hours = selector_get();
-        if (hours != _hours) {
-            tm1637_display_dec(hours * 100 + minutes, dots);
-            _hours = hours;
-        }
-        delay_ms(10);
-    }
-
-    selector_set(0, 59, current_time % 100);
-    while (!button_pressed()) {
-        minutes = selector_get();
-        if (minutes != _minutes) {
-            tm1637_display_dec(hours * 100 + minutes, dots);
-            _minutes = minutes;
-        }
-        delay_ms(10);
-    }
-    selector_irq_off();
-    return hours * 100 + minutes;
-}
-
-static uint8_t take_user_dawn_duration(void)
-{
-    uint8_t dawn_duration = 0, _dawn_duration = 0xFF;
-    uint8_t disp_content[4] = {TM_d, TM_d, TM_0, TM_0};
-
-    selector_set(5, 20, 20);
-    selector_irq_on();
-    while (!button_pressed()) {
-        dawn_duration = selector_get();
-        if (dawn_duration != _dawn_duration) {
-            disp_content[2] = tm_digits[dawn_duration / 10];
-            disp_content[3] = tm_digits[dawn_duration % 10];
-            tm1637_display_content(disp_content);
-            _dawn_duration = dawn_duration;
-        }
-        delay_ms(10);
-    }
-    selector_irq_off();
-    return dawn_duration;
-}
-
-static uint8_t parse_number(int16_t number, uint8_t *buffer)
-{
-    uint16_t i;
-    uint8_t digit;
-    uint8_t len = 0;
-
-    if (number < 0)
-        *buffer++ = TM_MINUS;
-    for (i = 1000; i > 0; i /= 10) {
-        digit = number / i;
-        if (d > 0) {
-            *buffer++ = digit;
-            number -= i * digit;
-            len++;
-        }
-    }
-    return len;
-}
-
-static void display(uint8_t *desc, int16_t number, uint8_t startpos)
-{
-    uint8_t framebuff[4];
-    uint8_t ctbuff[4];
-    uint8_t *ct = framebuff;
-    uint8_t len;
-    uint8_t i;
-
-    if (len > 4)
-        return;
-
-    for (i = 0; i < startpos; i++)
-        *ct++ = *desc++;
-
-    len = parse_number(number, ctbuff);
-    for (i = 0; i < len; i++) {
-        *ct++ = *ctbuff++;
-    }
-
-    for (i = startpos + len; i < 4; i++)
-        *ct++ = *desc++;
-    tm1637_display_content(framebuff);
 }
