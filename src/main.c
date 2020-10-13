@@ -28,10 +28,10 @@ int main(void)
 {
     sys_setup();
     ui_show_splash_screen();
+    tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
     delay_ms(1000);
     eeprom_load(&opts);
     dawn_setup(opts.dawn_duration);
-    tm1637_set_brightness(TM_DEFAULT_BRIGHTNESS);
     current_time = ds1307_get_time();
 
     for (;;) {

@@ -7,6 +7,13 @@
 #define _din_high() (TM1637_GPORT->ODR |= TM1637_DIN_GPIN)
 #define _din_is_high()  (TM1637_GPORT->ODR & TM1637_DIN_GPIN)
 
+static void delay_us(uint16_t us)
+{
+    (void)us;
+    tim4_set_counter(0);
+    while (tim4_get_counter() < 1) {}
+}
+
 /*
       A
      ---
@@ -38,11 +45,6 @@ const uint8_t tm_digits[0x10] = {
 
 static uint8_t current_brightness = TM_DEFAULT_BRIGHTNESS;
 
-/* FIXME: Поскольку наш МК настроен на 2 МГц, микросекундная задержка
- * оказалась слишком запарна для реализации, и было решено забить
- * на тайминги в 2-3 мкс и заменить их на задежрку в 1 мс. Костыльно, но
- * в нашем случае не критично. При повторном использовании этой библиотеки
- * стоит заменить задержки на микросекундные, если необходимо. */
 static void tm1637_send_command(uint8_t);
 static void tm1637_send_sequence(const uint8_t [], uint8_t count);
 static void tm1637_write_byte(uint8_t);
@@ -129,10 +131,10 @@ static void tm1637_write_byte(uint8_t data)
             _din_high();
         else
             _din_low();
+        delay_us(3);
         data >>= 1;
-        delay_ms(1);
         _clk_high();
-        delay_ms(1);
+        delay_us(3);
     }
     tm1637_transmission_handle_ack();
 }
@@ -141,29 +143,29 @@ static void tm1637_transmission_start(void)
 {
     _clk_high();
     _din_high();
-    delay_ms(1);
+    delay_us(2);
     _din_low();
 }
 
 static void tm1637_transmission_stop(void)
 {
     _clk_low();
-    delay_ms(1);
+    delay_us(2);
     _din_low();
-    delay_ms(1);
+    delay_us(2);
     _clk_high();
-    delay_ms(1);
+    delay_us(2);
     _din_high();
 }
 
 static inline void tm1637_transmission_handle_ack(void)
 {
     _clk_low();
-    delay_ms(1);
+    delay_us(5);
     _din_low();
     while (_din_is_high());
     _din_high();
     _clk_high();
-    delay_ms(1);
+    delay_us(2);
     _clk_low();
 }
