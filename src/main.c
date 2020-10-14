@@ -2,13 +2,20 @@
 #include "config.h"
 #include "button.h"
 #include "selector.h"
-#include "eeprom.h"
 #include "tm1637.h"
 #include "rtc.h"
 #include "dawn.h"
 #include "rgbstrip.h"
 #include "ui.h"
 
+static struct settings {
+    uint16_t alarm_time;     // время полного рассвета
+    uint8_t  dawn_duration;  // длительность рассвета (в минутах)
+} device_settings;
+
+/* Самая минималистичная реализация чего-то вроде планировщика задач.
+ * В прерываниях выставляем TODO-флаги, а потом в суперцикле обрабатываем дела.
+ */
 typedef volatile uint8_t todothing_t;
 
 static struct {
@@ -18,7 +25,6 @@ static struct {
 
 static bool alarm_active = TRUE;  // Используется функциями main и handle_alarm
 static uint16_t current_time;
-static struct options opts;
 
 static void sys_setup(void);
 static void update_time_and_display(void);
@@ -27,8 +33,8 @@ static void handle_alarm(void);
 int main(void)
 {
     sys_setup();
-    eeprom_load(&opts);
-    dawn_setup(opts.dawn_duration);
+    rtc_access_nvram((uint8_t *)&device_settings, sizeof(struct settings), RTC_NVRAM_LOAD);
+    dawn_setup(device_settings.dawn_duration);
     
     if (!rtc_is_running()) {  // Если это первое включение, настраиваем время,
         tm1637_set_brightness(7);
@@ -55,10 +61,10 @@ int main(void)
                 switch (ui_get_user_menu_item())
                 {
                 case ITEM_ALARMSETUP:
-                    opts.alarm_time = ui_get_user_time(current_time, FALSE);
-                    opts.dawn_duration = ui_get_user_dawn_duration();
-                    dawn_setup(opts.dawn_duration);
-                    eeprom_save(&opts);
+                    device_settings.alarm_time = ui_get_user_time(current_time, FALSE);
+                    device_settings.dawn_duration = ui_get_user_dawn_duration();
+                    dawn_setup(device_settings.dawn_duration);
+                    rtc_access_nvram((uint8_t *)&device_settings, sizeof(struct settings), RTC_NVRAM_SAVE);
                     alarm_active = TRUE;
                     break;
                 case ITEM_COLORSETUP:
@@ -217,8 +223,8 @@ static void update_time_and_display(void)
 static void handle_alarm(void)
 {
     // Рассчётное время полного рассвета относительно текущего времени.
-    uint16_t estimated_alarm = current_time + opts.dawn_duration;
-    bool not_too_late = current_time <= opts.alarm_time;
+    uint16_t estimated_alarm = current_time + device_settings.dawn_duration;
+    bool not_too_late = current_time <= device_settings.alarm_time;
 
     // Коррекция рассчётного времени под временной формат.
     if (estimated_alarm % 100 > 59)
@@ -231,10 +237,10 @@ static void handle_alarm(void)
      * 23:45 -- 00:00, то стандартная проверка ломается. Чтобы этого избежать,
      * пришлось переинтерпретировать условие "ещё не поздно".
      */
-    if (opts.alarm_time < opts.dawn_duration)
-        not_too_late = opts.alarm_time + opts.dawn_duration > estimated_alarm;
+    if (device_settings.alarm_time < device_settings.dawn_duration)
+        not_too_late = device_settings.alarm_time + device_settings.dawn_duration > estimated_alarm;
 
-    if (estimated_alarm >= opts.alarm_time && not_too_late) {
+    if (estimated_alarm >= device_settings.alarm_time && not_too_late) {
         if (alarm_active && !dawn_is_started())
             dawn_start();
     } else {
