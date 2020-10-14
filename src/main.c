@@ -4,7 +4,7 @@
 #include "selector.h"
 #include "eeprom.h"
 #include "tm1637.h"
-#include "ds1307.h"
+#include "rtc.h"
 #include "dawn.h"
 #include "rgbstrip.h"
 #include "ui.h"
@@ -27,12 +27,19 @@ static void handle_alarm(void);
 int main(void)
 {
     sys_setup();
-    ui_show_splash_screen();
-    tm1637_set_brightness(7);
-    delay_ms(1000);
     eeprom_load(&opts);
     dawn_setup(opts.dawn_duration);
-    current_time = ds1307_get_time();
+    
+    if (!rtc_is_running()) {  // Если это первое включение, настраиваем время,
+        tm1637_set_brightness(7);
+        rtc_setup(ui_get_user_time(0, TRUE));
+    } else {  // иначе показываем брутальный экран приветствия.
+        ui_show_splash_screen();
+        tm1637_set_brightness(7);
+        delay_ms(700);
+    }
+    current_time = rtc_get_time();
+    rtc_irq_on();
 
     for (;;) {
         if (button_pressed()) {
@@ -64,7 +71,7 @@ int main(void)
                     break;
                 case ITEM_CLOCKSETUP:
                     current_time = ui_get_user_time(current_time, TRUE);
-                    ds1307_set_time(current_time);
+                    rtc_set_time(current_time);
                     break;
                 case ITEM_CANCEL:
                     break;
@@ -72,7 +79,7 @@ int main(void)
                 tm1637_set_brightness(prev_brightness);
 
                 // если долго копались в меню, не помешает обновить текущее время.
-                current_time = ds1307_get_time();
+                current_time = rtc_get_time();
             }
             rtc_irq_on();
         }
@@ -114,7 +121,6 @@ static void sys_setup(void)
     TM1637_GPORT->DDR |= TM1637_CLK_GPIN | TM1637_DIN_GPIN;
     TM1637_GPORT->ODR |= TM1637_CLK_GPIN | TM1637_DIN_GPIN;
     RTC_SQW_OUT_GPORT->CR1 |= RTC_SQW_OUT_GPIN;
-    RTC_SQW_OUT_GPORT->CR2 |= RTC_SQW_OUT_GPIN;
 #if (DAWNALARM_MK == 2)
     BUTTON_GPORT->CR1 |= BUTTON_GPIN;  // MK1 has external pulldown.
     ENCODER_GPORT->CR1 |= ENCODER_CHA_GPIN | ENCODER_CHB_GPIN;
@@ -176,7 +182,7 @@ static void sys_setup(void)
     enableInterrupts();
 }
 
-INTERRUPT_HANDLER(clock_dots_irq, ITC_IRQ_PORTC)
+INTERRUPT_HANDLER(rtc_sqw_irq, ITC_IRQ_PORTC)
 {
     todotable.update_display = 1;
 }
@@ -195,7 +201,7 @@ static void update_time_and_display(void)
     if (++counter >> 1 > 10) {  // Раз в 10 секунд обновляем время.
         static bool prev_darktime = FALSE;
         bool darktime = rgbstrip_is_active() == FALSE;
-        current_time = ds1307_get_time();
+        current_time = rtc_get_time();
         darktime &= ((current_time >= 2000 && current_time < 2400) ||
                      (current_time < 600));
         if (darktime != prev_darktime) {
