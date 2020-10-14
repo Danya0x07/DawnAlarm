@@ -6,7 +6,7 @@
 #define RGB_MAX_VALUE 255
 
 enum color {
-    COLOR_RED,
+    COLOR_RED = 0,
     COLOR_GREEN,
     COLOR_BLUE
 };

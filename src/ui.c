@@ -4,34 +4,53 @@
 #include "tm1637.h"
 #include "config.h"
 
-static int8_t parse_number_into_tm16_digits(int16_t number, uint8_t *digits)
+static int8_t parse_number_into_tm16_digits(int16_t number, uint8_t radix, uint8_t *digits)
 {
-    uint16_t i;
+    int16_t i;
     uint8_t digit;
     int8_t len = 0;
     bool started = FALSE;
 
-    if (number > 9999 || number < -999)
-        return -1;
+    if ((radix == 10 && (number > 9999 || number < -999)) ||
+        (radix == 16 && (number < -0x0FFF)))
+            return -1;
 
     if (number < 0) {
         *digits++ = TM16_MINUS;
         number = -number;
     } 
-    
-    for (i = 1000; i > 0; i /= 10) {
-        digit = number / i;
-        if (digit > 0 || started) {
-            started = TRUE;
-            *digits++ = tm16_digits[digit];
-            number -= i * digit;
-            len++;
+
+    if (radix == 10) {
+        for (i = 1000; i > 0; i /= 10) {
+            digit = number / i;
+            if (digit > 0 || started) {
+                started = TRUE;
+                *digits++ = tm16_digits[digit];
+                number -= i * digit;
+                len++;
+            }
         }
+    }
+    else if (radix == 16) {
+        for (i = 12; i >= 0; i -= 4) {
+            digit = (number >> i) & 0x0F;
+            if (digit > 0 || started) {
+                started = TRUE;
+                *digits++ = tm16_digits[digit];
+                len++;
+            }
+        }
+    }
+
+    if (len == 0) {
+        *digits++ = tm16_digits[0];
+        len = 1;
     }
     return len;
 }
 
-static void display_value_with_caption(const uint8_t *caption, int16_t value, uint8_t startpos)
+static void display_value_with_caption(const uint8_t *caption, int16_t value, uint8_t radix, 
+                                       uint8_t startpos)
 {
     static uint8_t content_buff[4];
     static uint8_t digit_buff[4];
@@ -42,7 +61,7 @@ static void display_value_with_caption(const uint8_t *caption, int16_t value, ui
     for (i = 0; i < startpos; i++)
         *cb++ = *caption++;
 
-    if ((len = parse_number_into_tm16_digits(value, digit_buff)) < 0)
+    if ((len = parse_number_into_tm16_digits(value, radix, digit_buff)) < 0)
         return;
     
     for (i = 0; i < len; i++)
@@ -104,14 +123,21 @@ static void cb_get_user_time(int16_t val1, void *pval2)
 static void cb_get_user_dd(int16_t dd, void *unused)
 {
     static const uint8_t caption[4] = {TM16_d, TM16_d, TM16_0, TM16_0};
-    display_value_with_caption(caption, dd, dd > 9 ? 2 : 3);
+    display_value_with_caption(caption, dd, 10, dd > 9 ? 2 : 3);
 }
 
 static void cb_display_brightness(int16_t value, void *color)
 {
-    static const uint8_t caption[4] = {TM16_CLEAR, TM16_0, TM16_0, TM16_0};
-    display_value_with_caption(caption, value, 1);
-    rgbstrip_set(*((enum color *)color), value);
+    static const uint8_t captions[3][4] =  {
+        {TM16_r, TM16_E, TM16_d, TM16_0},
+        {TM16_9, TM16_r, TM16_E, TM16_0},
+        {TM16_b, TM16_L, TM16_U, TM16_0}
+    };
+    enum color col = *((enum color *)color);
+    
+    display_value_with_caption(captions[col], value, 16, 3);
+    value = (0xFF * value) >> 4;
+    rgbstrip_set(col, value);
 }
 
 void ui_show_splash_screen(void)
@@ -146,7 +172,7 @@ uint8_t ui_get_user_dawn_duration(void)
 
 void ui_set_strip_brightness(enum color c)
 {
-    get_user_value(0, 0xFF, 0, cb_display_brightness, &c);
+    get_user_value(0, 0x0F, 0, cb_display_brightness, &c);
 }
 
 void ui_perform_disko(void)

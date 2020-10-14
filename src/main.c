@@ -151,7 +151,7 @@ static void sys_setup(void)
     ADC1->CR1 |= ADC1_CR1_ADON;
 
     // TIM1 для RGB-ленты.
-    TIM1_TimeBaseInit(20, TIM1_COUNTERMODE_UP, RGB_MAX_VALUE, 0);
+    TIM1_TimeBaseInit(100, TIM1_COUNTERMODE_UP, RGB_MAX_VALUE, 0);
 
     TIM1_OC1Init(TIM1_OCMODE_PWM1,
                  TIM1_OUTPUTSTATE_ENABLE, TIM1_OUTPUTNSTATE_DISABLE,
