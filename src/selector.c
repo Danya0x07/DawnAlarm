@@ -32,11 +32,6 @@ static volatile int16_t bd_min, bd_max, current;
 INTERRUPT_HANDLER(encoder_irq, ITC_IRQ_PORTD)
 {
     selector_irq_off();
-
-    delay_ms(2);
-    if (!(ENCODER_GPORT->IDR & ENCODER_CHA_GPIN))
-        goto out;
-
     if (ENCODER_GPORT->IDR & ENCODER_CHB_GPIN) {
         current++;
     } else {
@@ -46,8 +41,6 @@ INTERRUPT_HANDLER(encoder_irq, ITC_IRQ_PORTD)
         current = bd_max;
     if (current < bd_min)
         current = bd_min;
-
-out:
     selector_irq_on();
 }
 #endif  // DAWNALARM_MK
