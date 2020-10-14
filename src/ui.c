@@ -4,7 +4,7 @@
 #include "tm1637.h"
 #include "config.h"
 
-static int8_t parse_number_into_digits(int16_t number, uint8_t *digits)
+static int8_t parse_number_into_tm16_digits(int16_t number, uint8_t *digits)
 {
     uint16_t i;
     uint8_t digit;
@@ -42,7 +42,7 @@ static void display_value_with_caption(const uint8_t *caption, int16_t value, ui
     for (i = 0; i < startpos; i++)
         *cb++ = *caption++;
 
-    if ((len = parse_number_into_digits(value, digit_buff)) < 0)
+    if ((len = parse_number_into_tm16_digits(value, digit_buff)) < 0)
         return;
     
     for (i = 0; i < len; i++)
@@ -75,7 +75,7 @@ static int16_t get_user_value(int16_t val_min, int16_t val_max, int16_t val_init
 
 static void cb_get_menu_item(int16_t item, void *unused)
 {
-    static uint8_t menu[ITEMS_TOTAL][4] = {
+    static const uint8_t menu[ITEMS_TOTAL][4] = {
         {TM16_A, TM16_L, TM16_A, TM16_r},
         {TM16_CLEAR, TM16_C, TM16_0, TM16_L},
         {TM16_d, TM16_I, TM16_C, TM16_0},
@@ -103,20 +103,20 @@ static void cb_get_user_time(int16_t val1, void *pval2)
 
 static void cb_get_user_dd(int16_t dd, void *unused)
 {
-    static uint8_t caption[4] = {TM16_d, TM16_d, TM16_0, TM16_0};
+    static const uint8_t caption[4] = {TM16_d, TM16_d, TM16_0, TM16_0};
     display_value_with_caption(caption, dd, dd > 9 ? 2 : 3);
 }
 
 static void cb_display_brightness(int16_t value, void *color)
 {
-    static uint8_t caption[4] = {TM16_CLEAR, TM16_0, TM16_0, TM16_0};
+    static const uint8_t caption[4] = {TM16_CLEAR, TM16_0, TM16_0, TM16_0};
     display_value_with_caption(caption, value, 1);
     rgbstrip_set(*((enum color *)color), value);
 }
 
 void ui_show_splash_screen(void)
 {
-    static uint8_t splash_screen[4] = 
+    static const uint8_t splash_screen[4] = 
         {TM16_MINUS, TM16_MINUS | TM16_DOTS, TM16_MINUS, TM16_MINUS};
     tm1637_display_content(splash_screen);
 }
@@ -153,7 +153,7 @@ void ui_perform_disko(void)
 {
     enum color incr_color = COLOR_GREEN;
     enum color decr_color = COLOR_RED;
-    static uint8_t smiley[4] = {0x18, 0xEB, 0x6B, 0x0C};
+    static const uint8_t smiley[4] = {0x18, 0xEB, 0x6B, 0x0C};
     uint16_t i;
 
     tm1637_display_content(smiley);
