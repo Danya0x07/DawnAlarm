@@ -29,7 +29,7 @@ typedef uint8_t uint_fast8_t;  // Can be removed if your headers provide this ty
  * the ack checking function will block forever if the connection
  * to the TM1637 is broken.
  */
-#define _us_timer_reset(us) ((void)0)
+#define _us_timer_set(us) ((void)0)
 #define _us_timer_get()     (0)
 
 /* Ultraseconds delay function.

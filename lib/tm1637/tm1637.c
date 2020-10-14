@@ -28,7 +28,7 @@
  *    ---
  *     D
  */
-const uint8_t tm_digits[0x10] = {
+const uint8_t tm16_digits[0x10] = {
 //    XGFEDCBA
     0b00111111,  // 0
     0b00000110,  // 1
@@ -136,23 +136,23 @@ void tm1637_display_dec(int16_t number, bool dots)
     bytes[0] = CS_ADDRESS | 0;
 
     if (number < 0) {
-        bytes[1] = TM_MINUS;
+        bytes[1] = TM16_MINUS;
         number = -number;
     } else {
         digit = number / 1000;
-        bytes[1] = tm_digits[digit];
+        bytes[1] = tm16_digits[digit];
         number -= digit * 1000;
     }
     digit = number / 100;
-    bytes[2] = tm_digits[digit] | dots << 7;
+    bytes[2] = tm16_digits[digit] | dots << 7;
     number -= digit * 100;
 
     digit = number / 10;
-    bytes[3] = tm_digits[digit];
+    bytes[3] = tm16_digits[digit];
     number -= digit * 10;
 
     digit = number;
-    bytes[4] = tm_digits[digit];
+    bytes[4] = tm16_digits[digit];
     
     write_command(CS_DATA);  // cursor auto increment
     write_bytes(bytes, sizeof(bytes));
