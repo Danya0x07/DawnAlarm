@@ -10,7 +10,6 @@
 
 /* TODO:
  *  - Измерение заряда батарейки;
- *  - Возможность включать/выключать будильник;
  *  - Возможность включать/выключать пищалку;
  *  - Спящий режим добавить.
  */
@@ -18,6 +17,7 @@
 static struct settings {
     uint16_t alarm_time;     // время полного рассвета
     uint8_t  dawn_duration;  // длительность рассвета (в минутах)
+    bool alarm_enabled;      // включён ли вообще будильник или работаем просто как часы
 } device_settings;
 
 /* Самая минималистичная реализация чего-то вроде планировщика задач.
@@ -58,7 +58,8 @@ int main(void)
         if (button_pressed()) {
             rtc_irq_off();
 
-            if (dawn_is_ongoing(current_time)) {
+            if (device_settings.alarm_enabled && 
+                    !dawn_performed && dawn_is_ongoing(current_time)) {
                 dawn_performed = TRUE;
                 todotable.update_dawn = 0;
                 rgbstrip_kill();
@@ -67,15 +68,20 @@ int main(void)
                 rgbstrip_kill();
             }
             else {
+                uint8_t prev_brightness = tm1637_get_brightness();
+
                 tm1637_set_brightness(7);
                 switch (ui_get_user_menu_item())
                 {
                 case ITEM_ALARMSETUP:
-                    device_settings.alarm_time = ui_get_user_time(current_time, FALSE);
-                    device_settings.dawn_duration = ui_get_user_dawn_duration();
-                    dawn_setup(device_settings.alarm_time, device_settings.dawn_duration);
+                    device_settings.alarm_enabled = ui_get_user_boolean();
+                    if (device_settings.alarm_enabled) {
+                        device_settings.alarm_time = ui_get_user_time(current_time, FALSE);
+                        device_settings.dawn_duration = ui_get_user_dawn_duration();
+                        dawn_setup(device_settings.alarm_time, device_settings.dawn_duration);
+                        dawn_performed = FALSE;
+                    }
                     rtc_access_nvram((uint8_t *)&device_settings, sizeof(struct settings), RTC_NVRAM_SAVE);
-                    dawn_performed = FALSE;
                     break;
                 case ITEM_COLORSETUP:
                     ui_set_strip_colors_brightness();
@@ -90,6 +96,7 @@ int main(void)
                 case ITEM_CANCEL:
                     break;
                 }
+                tm1637_set_brightness(prev_brightness);
                 // если долго копались в меню, не помешает обновить текущее время.
                 current_time = rtc_get_time();
                 update_display_brightness(current_time);
@@ -224,7 +231,7 @@ static void update_time_and_display(void)
     if (++counter >> 1 > 10) {  // Раз в 10 секунд обновляем состояние логики будильника.
         current_time = rtc_get_time();
         handle_day_transition(current_time);
-        if (!dawn_performed)
+        if (device_settings.alarm_enabled && !dawn_performed)
             todotable.update_dawn = 1;
         counter = 0;
     }

@@ -76,7 +76,7 @@ static void display_value_with_caption(const uint8_t *caption, int16_t value, ui
 static int16_t get_user_value(int16_t val_min, int16_t val_max, int16_t val_initial, 
                                void (*callback)(int16_t, void *), void *additional_arg)
 {
-    int16_t val = 0, prev_val = 0xFF;
+    int16_t val = 0, prev_val = (int16_t)0xFFFF;
 
     selector_set(val_min, val_max, val_initial);
     selector_irq_on();
@@ -120,7 +120,7 @@ static void cb_get_user_time(int16_t val1, void *pval2)
     tm1637_display_dec(hours * 100 + minutes, dots);
 }
 
-static void cb_get_user_dd(int16_t dd, void *unused)
+static void cb_get_user_dd(int16_t dd, void *out)
 {
     static const uint8_t caption[4] = {TM16_d, TM16_d, TM16_0, TM16_0};
     
@@ -131,6 +131,7 @@ static void cb_get_user_dd(int16_t dd, void *unused)
         dd = (dd - 1) * 10;
     }
     display_value_with_caption(caption, dd, 10, dd > 9 ? 2 : 3);
+    *((uint8_t *)out) = dd;
 }
 
 static void cb_display_brightness(int16_t value, void *color)
@@ -147,15 +148,13 @@ static void cb_display_brightness(int16_t value, void *color)
     rgbstrip_set(col, value);
 }
 
-static enum color disko_change_color(enum color c)
+static void cb_get_user_boolean(int16_t value, void *unused)
 {
-    switch (c)
-    {
-    case COLOR_RED:   return COLOR_GREEN;
-    case COLOR_GREEN: return COLOR_BLUE;
-    case COLOR_BLUE:  return COLOR_RED;
-    default: return COLOR_RED;
-    }
+    static const uint8_t options[2][4] = {
+        {TM16_CLEAR, TM16_o, TM16_F, TM16_F},
+        {TM16_CLEAR, TM16_CLEAR, TM16_o, TM16_n}
+    };
+    tm1637_display_content(options[value & 1]);
 }
 
 void ui_show_splash_screen(void)
@@ -185,7 +184,9 @@ uint16_t ui_get_user_time(uint16_t current_time, bool dots)
 
 uint8_t ui_get_user_dawn_duration(void)
 {
-    return get_user_value(1, 7, 4, cb_get_user_dd, NULL);
+    uint8_t dd;
+    get_user_value(1, 7, 4, cb_get_user_dd, &dd);
+    return dd;
 }
 
 void ui_set_strip_colors_brightness(void)
@@ -195,6 +196,22 @@ void ui_set_strip_colors_brightness(void)
     for (i = 0; i < 3; i++) {
         c = (enum color)i;
         get_user_value(0, 0x0F, 0, cb_display_brightness, &c);
+    }
+}
+
+bool ui_get_user_boolean(void)
+{
+    return get_user_value(0, 1, 0, cb_get_user_boolean, NULL);
+}
+
+static enum color disko_change_color(enum color c)
+{
+    switch (c)
+    {
+    case COLOR_RED:   return COLOR_GREEN;
+    case COLOR_GREEN: return COLOR_BLUE;
+    case COLOR_BLUE:  return COLOR_RED;
+    default: return COLOR_RED;
     }
 }
 
