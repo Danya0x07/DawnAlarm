@@ -8,6 +8,14 @@
 #include "rgbstrip.h"
 #include "ui.h"
 
+/* TODO:
+ *  Измерение заряда батарейки;
+ *  Возможность включать/выключать будильник;
+ *  Возможность включать/выключать пищалку;
+ *  Рассвет нормальный сделать;
+ *  Спящий режим добавить.
+ */
+
 static struct settings {
     uint16_t alarm_time;     // время полного рассвета
     uint8_t  dawn_duration;  // длительность рассвета (в минутах)
@@ -211,7 +219,7 @@ static void update_time_and_display(void)
         darktime &= ((current_time >= 2000 && current_time < 2400) ||
                      (current_time < 600));
         if (darktime != prev_darktime) {
-            tm1637_set_brightness(darktime * 7);  // грязная оптимизация
+            tm1637_set_brightness(!darktime * 7);  // грязная оптимизация
             prev_darktime = darktime;
         }
         
