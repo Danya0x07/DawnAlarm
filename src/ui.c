@@ -64,7 +64,7 @@ static void display_value_with_caption(const uint8_t *caption, int16_t value, ui
     if ((len = parse_number_into_tm16_digits(value, radix, digit_buff)) < 0)
         return;
     
-    for (i = 0; i < len; i++)
+    for (i = 0; i < (uint8_t)len; i++)
         *cb++ = digit_buff[i];
 
     for (i = startpos + len; i < 4; i++)
@@ -123,6 +123,13 @@ static void cb_get_user_time(int16_t val1, void *pval2)
 static void cb_get_user_dd(int16_t dd, void *unused)
 {
     static const uint8_t caption[4] = {TM16_d, TM16_d, TM16_0, TM16_0};
+    
+    if (dd == 1) { 
+        dd = 5;
+    }
+    else {
+        dd = (dd - 1) * 10;
+    }
     display_value_with_caption(caption, dd, 10, dd > 9 ? 2 : 3);
 }
 
@@ -138,6 +145,17 @@ static void cb_display_brightness(int16_t value, void *color)
     display_value_with_caption(captions[col], value, 16, 3);
     value = (0xFF * value) >> 4;
     rgbstrip_set(col, value);
+}
+
+static enum color disko_change_color(enum color c)
+{
+    switch (c)
+    {
+    case COLOR_RED:   return COLOR_GREEN;
+    case COLOR_GREEN: return COLOR_BLUE;
+    case COLOR_BLUE:  return COLOR_RED;
+    default: return COLOR_RED;
+    }
 }
 
 void ui_show_splash_screen(void)
@@ -167,12 +185,17 @@ uint16_t ui_get_user_time(uint16_t current_time, bool dots)
 
 uint8_t ui_get_user_dawn_duration(void)
 {
-    return get_user_value(5, 20, 20, cb_get_user_dd, NULL);
+    return get_user_value(1, 7, 4, cb_get_user_dd, NULL);
 }
 
-void ui_set_strip_brightness(enum color c)
+void ui_set_strip_colors_brightness(void)
 {
-    get_user_value(0, 0x0F, 0, cb_display_brightness, &c);
+    uint8_t i;
+    enum color c;
+    for (i = 0; i < 3; i++) {
+        c = (enum color)i;
+        get_user_value(0, 0x0F, 0, cb_display_brightness, &c);
+    }
 }
 
 void ui_perform_disko(void)
@@ -193,7 +216,7 @@ void ui_perform_disko(void)
             delay_ms(20);
         }
         decr_color = incr_color;
-        incr_color = rgbstrip_change_color(incr_color);
+        incr_color = disko_change_color(incr_color);
     }
     rgbstrip_set_R(0);
     rgbstrip_set_G(0);

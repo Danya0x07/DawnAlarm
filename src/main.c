@@ -9,10 +9,10 @@
 #include "ui.h"
 
 /* TODO:
- *  Измерение заряда батарейки;
- *  Возможность включать/выключать будильник;
- *  Возможность включать/выключать пищалку;
- *  Спящий режим добавить.
+ *  - Измерение заряда батарейки;
+ *  - Возможность включать/выключать будильник;
+ *  - Возможность включать/выключать пищалку;
+ *  - Спящий режим добавить.
  */
 
 static struct settings {
@@ -35,7 +35,7 @@ static int16_t current_time;
 
 static void sys_setup(void);
 static void update_time_and_display(void);
-static void handle_alarm(void);
+static void update_display_brightness(int16_t current_time);
 
 int main(void)
 {
@@ -67,8 +67,6 @@ int main(void)
                 rgbstrip_kill();
             }
             else {
-                uint8_t prev_brightness = tm1637_get_brightness();
-
                 tm1637_set_brightness(7);
                 switch (ui_get_user_menu_item())
                 {
@@ -80,9 +78,7 @@ int main(void)
                     dawn_performed = FALSE;
                     break;
                 case ITEM_COLORSETUP:
-                    ui_set_strip_brightness(COLOR_RED);
-                    ui_set_strip_brightness(COLOR_GREEN);
-                    ui_set_strip_brightness(COLOR_BLUE);
+                    ui_set_strip_colors_brightness();
                     break;
                 case ITEM_DISKO:
                     ui_perform_disko();
@@ -94,10 +90,9 @@ int main(void)
                 case ITEM_CANCEL:
                     break;
                 }
-                tm1637_set_brightness(prev_brightness);
-
                 // если долго копались в меню, не помешает обновить текущее время.
                 current_time = rtc_get_time();
+                update_display_brightness(current_time);
             }
             rtc_irq_on();
         }
@@ -197,7 +192,7 @@ INTERRUPT_HANDLER(rtc_sqw_irq, ITC_IRQ_PORTC)
     todotable.update_display = 1;
 }
 
-static inline void update_display_brightness(int16_t current_time)
+static void update_display_brightness(int16_t current_time)
 {
     static bool prev_darktime = FALSE;
     bool darktime = rgbstrip_is_active() == FALSE;
@@ -225,10 +220,9 @@ static void update_time_and_display(void)
     static uint8_t counter = 0;
     static bool dots = FALSE;
     
-
+    update_display_brightness(current_time);
     if (++counter >> 1 > 10) {  // Раз в 10 секунд обновляем состояние логики будильника.
         current_time = rtc_get_time();
-        update_display_brightness(current_time);
         handle_day_transition(current_time);
         if (!dawn_performed)
             todotable.update_dawn = 1;

@@ -16,14 +16,3 @@ void rgbstrip_kill(void)
     rgbstrip_set_G(0);
     rgbstrip_set_B(0);
 }
-
-enum color rgbstrip_change_color(enum color c)
-{
-    switch (c)
-    {
-    case COLOR_RED:   return COLOR_GREEN;
-    case COLOR_GREEN: return COLOR_BLUE;
-    case COLOR_BLUE:  return COLOR_RED;
-    default: return COLOR_RED;
-    }
-}

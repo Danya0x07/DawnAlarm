@@ -25,6 +25,5 @@ enum color {
 
 void rgbstrip_set(enum color c, uint8_t val);
 void rgbstrip_kill(void);
-enum color rgbstrip_change_color(enum color c);
 
 #endif  // _RGBSTRIP_H
