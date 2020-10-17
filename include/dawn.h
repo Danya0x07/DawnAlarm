@@ -1,13 +1,15 @@
 #ifndef _DAWN_H
 #define _DAWN_H
 
-#include "halutils.h"
+#ifdef UNIT_TEST
+#   include <stdint.h>
+#   include <stdbool.h>
+#else
+#   include "halutils.h"
+#endif
 
-#define dawn_start()    (TIM2->CR1 |= TIM2_CR1_CEN)
-#define dawn_is_started()   ((TIM2->CR1 & TIM2_CR1_CEN) != 0)
-
-void dawn_setup(uint8_t duration);
-void dawn_stop(void);
-void dawn_update(void);
+void dawn_setup(int16_t alarm_time, uint16_t dawn_duration);
+void dawn_update(int16_t current_time);
+bool dawn_is_ongoing(int16_t current_time);
 
 #endif  // _DAWN_H

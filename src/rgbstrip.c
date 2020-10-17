@@ -10,6 +10,13 @@ void rgbstrip_set(enum color c, uint8_t val)
     }
 }
 
+void rgbstrip_kill(void)
+{
+    rgbstrip_set_R(0);
+    rgbstrip_set_G(0);
+    rgbstrip_set_B(0);
+}
+
 enum color rgbstrip_change_color(enum color c)
 {
     switch (c)
