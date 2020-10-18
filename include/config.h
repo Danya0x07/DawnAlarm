@@ -2,7 +2,7 @@
 #define _CONFIG_H
 
 #ifndef DAWNALARM_MK
-#   error Please specify the device version, DAWNALARM_MK=[1 - 2].
+#   error Please specify the device version, DAWNALARM_MK=1..2.
 #endif
 
 // UART, который, возможно, когда-нибудь будет использоваться.

@@ -11,6 +11,7 @@ int16_t selector_get(void);
 
 #define selector_irq_on()
 #define selector_irq_off()
+#define selector_irq_is_on()    (0)
 
 #elif (DAWNALARM_MK == 2)
 

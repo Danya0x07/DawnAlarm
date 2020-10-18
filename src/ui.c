@@ -7,11 +7,15 @@
 
 static const uint8_t menu[ITEMS_TOTAL][4] = {
     {TM16_A, TM16_L, TM16_A, TM16_r},
+#if (DAWNALARM == 2)
     {TM16_b, TM16_E, TM16_E, TM16_P},
+#endif
     {TM16_CLEAR, TM16_C, TM16_0, TM16_L},
     {TM16_d, TM16_I, TM16_C, TM16_0},
     {TM16_C, TM16_L, TM16_0, TM16_C},
+#if (DAWNALARM == 2)
     {TM16_C, TM16_h, TM16_A, TM16_r},
+#endif
     {TM16_0, TM16_E, TM16_H, TM16_A}
 };
 
@@ -168,26 +172,9 @@ void ui_show_splash_screen(void)
     tm1637_display_content(splash_screen);
 }
 
-void ui_show_battery_level_low(void)
-{
-    static const uint8_t msg[4] = {TM16_b, TM16_A, TM16_L, TM16_o};
-    tm1637_display_content(msg);
-    buzzer_buzz(3, 500);
-    delay_ms(800);
-}
-
 enum menu_item ui_get_user_menu_item(void)
 {
     return get_user_value(0, ITEMS_TOTAL - 1, 0, cb_get_menu_item, NULL);
-}
-
-void ui_show_charge_level(void)
-{
-    tm1637_display_dec(battery_get_charge(), FALSE);
-    while (button_is_pressed()) {
-        tm1637_display_dec(battery_get_charge(), FALSE);
-        delay_ms(500);
-    }
 }
 
 uint16_t ui_get_user_time(uint16_t current_time, bool dots)
@@ -208,16 +195,6 @@ uint8_t ui_get_user_dawn_duration(void)
     uint8_t dd;
     get_user_value(1, 7, 4, cb_get_user_dd, &dd);
     return dd;
-}
-
-bool ui_get_user_buzzer_status(void)
-{
-    selector_set(0, 2, 1);
-    tm1637_display_content(menu[ITEM_BUZZERSETUP]);
-    selector_irq_on();
-    while (selector_get() == 1)
-        delay_ms(10);
-    return get_user_value(0, 1, 0, cb_get_user_boolean, NULL);
 }
 
 void ui_set_strip_colors_brightness(void)
@@ -270,3 +247,33 @@ void ui_perform_disko(void)
     rgbstrip_set_G(0);
     rgbstrip_set_B(0);
 }
+
+#if (DAWNALARM_MK == 2)
+
+void ui_show_battery_level_low(void)
+{
+    static const uint8_t msg[4] = {TM16_b, TM16_A, TM16_L, TM16_o};
+    tm1637_display_content(msg);
+    buzzer_buzz(3, 500);
+    delay_ms(800);
+}
+
+void ui_show_charge_level(void)
+{
+    while (button_is_pressed()) {
+        tm1637_display_dec(battery_get_charge(), FALSE);
+        delay_ms(500);
+    }
+    delay_ms(1000);
+}
+
+bool ui_get_user_buzzer_status(void)
+{
+    selector_set(0, 2, 1);
+    tm1637_display_content(menu[ITEM_BUZZERSETUP]);
+    selector_irq_on();
+    while (selector_get() == 1)
+        delay_ms(10);
+    return get_user_value(0, 1, 0, cb_get_user_boolean, NULL);
+}
+#endif

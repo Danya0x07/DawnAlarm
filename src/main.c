@@ -1,3 +1,9 @@
+/* Copyright (C) 2020 Daniel Efimenko
+ *     github.com/Danya0x07
+ *------------------------------------
+ * Программное обеспечение для будильника рассвета DawnAlarm mkI и mkII.
+ */
+
 #include "halutils.h"
 #include "config.h"
 #include "button.h"
@@ -10,15 +16,13 @@
 #include "buzzer.h"
 #include "battery.h"
 
-/* TODO:
- *  - Совместимость с MK1
- */
-
 static struct settings {
     uint16_t alarm_time;     // время полного рассвета
     uint8_t  dawn_duration;  // длительность рассвета (в минутах)
     bool alarm_enabled;      // включён ли вообще будильник или работаем просто как часы
+#if (DAWNALARM_MK == 2)
     bool buzzer_enabled;     // пищать ли буззером при окончании рассвета
+#endif
 } device_settings;
 
 /* Самая минималистичная реализация чего-то вроде планировщика задач.
@@ -56,9 +60,11 @@ int main(void)
         delay_ms(700);
     }
 
+#if (DAWNALARM_MK == 2)
     if (battery_level_is_low()) {
         ui_show_battery_level_low();
     }
+#endif
 
     current_time = rtc_get_time();
     rtc_irq_on();
@@ -127,8 +133,10 @@ static void sys_setup(void)
 
     // Настройка внешних прерываний.
     EXTI->CR1 |= EXTI_SENSITIVITY_FALL_ONLY << 0;  // для кнопки
-    EXTI->CR1 |= EXTI_SENSITIVITY_RISE_ONLY << 6;  // для энкодера
     EXTI->CR1 |= EXTI_SENSITIVITY_RISE_ONLY << 4;  // для RTC
+#if (DAWNALARM_MK == 2)
+    EXTI->CR1 |= EXTI_SENSITIVITY_RISE_ONLY << 6;  // для энкодера
+#endif
 
     // ADC1 для считывания положения потенциометра, либо, заряда аккумулятора.
     ADC1->CR1 |= ADC1_PRESSEL_FCPU_D18;
@@ -168,7 +176,7 @@ static void sys_setup(void)
     TIM4->ARR = 0xFF;
     TIM4->CR1 |= TIM4_CR1_CEN;
 
-    // I2C для часов реального времени и микросхемы EEPROM.
+    // I2C для часов реального времени.
     _I2C_Init(I2C_MAX_STANDARD_FREQ, 0x54, I2C_DUTYCYCLE_2, I2C_ACK_CURR, I2C_ADDMODE_7BIT, 2);
     I2C->CR1 |= I2C_CR1_PE;
 
@@ -205,22 +213,26 @@ static void handle_button_press(void)
             if (device_settings.alarm_enabled) {
                 device_settings.alarm_time = ui_get_user_time(current_time, FALSE);
                 device_settings.dawn_duration = ui_get_user_dawn_duration();
+#if (DAWNALARM_MK == 2)
                 device_settings.buzzer_enabled = ui_get_user_buzzer_status();
                 if (device_settings.buzzer_enabled)
                     buzz_performed = FALSE;
+#endif
                 dawn_setup(device_settings.alarm_time, device_settings.dawn_duration);
                 dawn_performed = FALSE;
             }
             settings_changed = TRUE;
             break;
+#if (DAWNALARM_MK == 2)
         case ITEM_BUZZERSETUP:
             device_settings.buzzer_enabled = ui_get_user_boolean();
             if (device_settings.buzzer_enabled) {
-                buzzer_buzz(1, 150);
+                buzzer_buzz(1, 200);
                 buzz_performed = FALSE;
             }
             settings_changed = TRUE;
             break;
+#endif
         case ITEM_COLORSETUP:
             ui_set_strip_colors_brightness();
             break;
@@ -231,9 +243,11 @@ static void handle_button_press(void)
             current_time = ui_get_user_time(current_time, TRUE);
             rtc_set_time(current_time);
             break;
+#if (DAWNALARM_MK == 2)
         case ITEM_CHARGE:
             ui_show_charge_level();
             break;
+#endif
         case ITEM_CANCEL:
             break;
         }
@@ -282,10 +296,12 @@ static void update_time_and_display(void)
         handle_day_transition(current_time);
         if (device_settings.alarm_enabled && !dawn_performed) {
             todotable.update_dawn = 1;
+#if (DAWNALARM_MK == 2)
             if (device_settings.buzzer_enabled && 
                     current_time == device_settings.alarm_time &&
                     !buzzer_is_on())
                 buzzer_on();
+#endif
         }
         counter = 0;
     }
