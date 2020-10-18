@@ -17,6 +17,7 @@ enum menu_item {
 };
 
 void ui_show_splash_screen(void);
+void ui_show_battery_level_low(void);
 enum menu_item ui_get_user_menu_item(void);
 void ui_show_charge_level(void);
 uint16_t ui_get_user_time(uint16_t current_time, bool dots);

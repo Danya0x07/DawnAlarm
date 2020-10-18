@@ -3,6 +3,7 @@
 #include "selector.h"
 #include "tm1637.h"
 #include "battery.h"
+#include "buzzer.h"
 
 static const uint8_t menu[ITEMS_TOTAL][4] = {
     {TM16_A, TM16_L, TM16_A, TM16_r},
@@ -165,6 +166,14 @@ void ui_show_splash_screen(void)
     static const uint8_t splash_screen[4] = 
         {TM16_MINUS, TM16_MINUS | TM16_DOTS, TM16_MINUS, TM16_MINUS};
     tm1637_display_content(splash_screen);
+}
+
+void ui_show_battery_level_low(void)
+{
+    static const uint8_t msg[4] = {TM16_b, TM16_A, TM16_L, TM16_o};
+    tm1637_display_content(msg);
+    buzzer_buzz(3, 500);
+    delay_ms(800);
 }
 
 enum menu_item ui_get_user_menu_item(void)

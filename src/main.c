@@ -8,6 +8,11 @@
 #include "rgbstrip.h"
 #include "ui.h"
 #include "buzzer.h"
+#include "battery.h"
+
+/* TODO:
+ *  - Совместимость с MK1
+ */
 
 static struct settings {
     uint16_t alarm_time;     // время полного рассвета
@@ -50,6 +55,11 @@ int main(void)
         tm1637_set_brightness(7);
         delay_ms(700);
     }
+
+    if (battery_level_is_low()) {
+        ui_show_battery_level_low();
+    }
+
     current_time = rtc_get_time();
     rtc_irq_on();
     button_irq_on();

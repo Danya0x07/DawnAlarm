@@ -6,10 +6,10 @@
 #define R2  82
 
 // Граничные напряжения аккумулятора в вольтах/10
-#define BATTERY_MAX_VOLTAGE 41
+#define BATTERY_MAX_VOLTAGE 40
 #define BATTERY_MIN_VOLTAGE 28
 
-#define CRITICAL_CHARGE_LEVEL   5
+#define CRITICAL_CHARGE_LEVEL   10
 
 uint8_t battery_get_charge(void)
 {
