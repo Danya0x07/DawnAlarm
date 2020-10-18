@@ -2,6 +2,10 @@
 #define _BUTTON_H
 
 #include "halutils.h"
+#include "config.h"
+
+#define button_irq_on()     (BUTTON_GPORT->CR2 |= BUTTON_GPIN)
+#define button_irq_off()    (BUTTON_GPORT->CR2 &= ~BUTTON_GPIN)
 
 /**
  * Возвращает TRUE, если кнопка была переведена из ненажатого состояния в

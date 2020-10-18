@@ -9,10 +9,6 @@
 #include "ui.h"
 #include "buzzer.h"
 
-/* TODO:
- *  - Спящий режим добавить.
- */
-
 static struct settings {
     uint16_t alarm_time;     // время полного рассвета
     uint8_t  dawn_duration;  // длительность рассвета (в минутах)
@@ -28,6 +24,7 @@ typedef volatile uint8_t todothing_t;
 static struct {
     todothing_t update_display;
     todothing_t update_dawn;
+    todothing_t handle_btn_press;
 } todotable;
 
 static int16_t current_time;
@@ -35,6 +32,7 @@ static bool dawn_performed;
 static bool buzz_performed;
 
 static void sys_setup(void);
+static void handle_button_press(void);
 static void update_time_and_display(void);
 static void update_display_brightness(int16_t current_time);
 
@@ -54,73 +52,12 @@ int main(void)
     }
     current_time = rtc_get_time();
     rtc_irq_on();
+    button_irq_on();
 
     for (;;) {
-        if (button_pressed()) {
-            rtc_irq_off();
-
-            if (!buzz_performed && buzzer_is_on()) {
-                buzzer_off();
-                buzz_performed = TRUE;
-            }
-            else if (device_settings.alarm_enabled && !dawn_performed && 
-                    dawn_is_ongoing(current_time)) {
-                buzz_performed = dawn_performed = TRUE;
-                todotable.update_dawn = 0;
-                rgbstrip_kill();
-            } 
-            else if (rgbstrip_is_active()) {
-                rgbstrip_kill();
-            }
-            else {
-                bool settings_changed = FALSE;
-                uint8_t prev_brightness = tm1637_get_brightness();
-
-                tm1637_set_brightness(7);
-                switch (ui_get_user_menu_item())
-                {
-                case ITEM_ALARMSETUP:
-                    device_settings.alarm_enabled = ui_get_user_boolean();
-                    if (device_settings.alarm_enabled) {
-                        device_settings.alarm_time = ui_get_user_time(current_time, FALSE);
-                        device_settings.dawn_duration = ui_get_user_dawn_duration();
-                        dawn_setup(device_settings.alarm_time, device_settings.dawn_duration);
-                        dawn_performed = FALSE;
-                    }
-                    settings_changed = TRUE;
-                    break;
-                case ITEM_BUZZERSETUP:
-                    device_settings.buzzer_enabled = ui_get_user_boolean();
-                    if (device_settings.buzzer_enabled) {
-                        buzzer_buzz(1, 150);
-                        buzz_performed = FALSE;
-                    }
-                    settings_changed = TRUE;
-                    break;
-                case ITEM_COLORSETUP:
-                    ui_set_strip_colors_brightness();
-                    break;
-                case ITEM_DISKO:
-                    ui_perform_disko();
-                    break;
-                case ITEM_CLOCKSETUP:
-                    current_time = ui_get_user_time(current_time, TRUE);
-                    rtc_set_time(current_time);
-                    break;
-                case ITEM_CHARGE:
-                    ui_show_charge_level();
-                    break;
-                case ITEM_CANCEL:
-                    break;
-                }
-                tm1637_set_brightness(prev_brightness);
-                if (settings_changed)
-                    rtc_access_nvram((uint8_t *)&device_settings, sizeof(struct settings), RTC_NVRAM_SAVE);
-                // если долго копались в меню, не помешает обновить текущее время.
-                current_time = rtc_get_time();
-                update_display_brightness(current_time);
-            }
-            rtc_irq_on();
+        if (todotable.handle_btn_press) {
+            handle_button_press();
+            todotable.handle_btn_press = 0;
         }
 
         if (todotable.update_display) {
@@ -132,7 +69,19 @@ int main(void)
             dawn_update(current_time);
             todotable.update_dawn = 0;
         }
+
+        wfi();
     }
+}
+
+INTERRUPT_HANDLER(button_irq, ITC_IRQ_PORTA)
+{
+    todotable.handle_btn_press = 1;
+}
+
+INTERRUPT_HANDLER(rtc_sqw_irq, ITC_IRQ_PORTC)
+{
+    todotable.update_display = 1;
 }
 
 static void sys_setup(void)
@@ -167,8 +116,9 @@ static void sys_setup(void)
 #endif
 
     // Настройка внешних прерываний.
-    EXTI->CR1 |= EXTI_SENSITIVITY_RISE_ONLY << 0;
-    EXTI->CR1 |= EXTI_SENSITIVITY_RISE_ONLY << 6;
+    EXTI->CR1 |= EXTI_SENSITIVITY_FALL_ONLY << 0;  // для кнопки
+    EXTI->CR1 |= EXTI_SENSITIVITY_RISE_ONLY << 6;  // для энкодера
+    EXTI->CR1 |= EXTI_SENSITIVITY_RISE_ONLY << 4;  // для RTC
 
     // ADC1 для считывания положения потенциометра, либо, заряда аккумулятора.
     ADC1->CR1 |= ADC1_PRESSEL_FCPU_D18;
@@ -215,9 +165,74 @@ static void sys_setup(void)
     enableInterrupts();
 }
 
-INTERRUPT_HANDLER(rtc_sqw_irq, ITC_IRQ_PORTC)
+static void handle_button_press(void)
 {
-    todotable.update_display = 1;
+    button_irq_off();
+    rtc_irq_off();
+
+    if (!buzz_performed && buzzer_is_on()) {
+        buzzer_off();
+        buzz_performed = TRUE;
+    }
+    else if (device_settings.alarm_enabled && !dawn_performed && 
+                dawn_is_ongoing(current_time)) {
+        buzz_performed = dawn_performed = TRUE;
+        todotable.update_dawn = 0;
+        rgbstrip_kill();
+    } 
+    else if (rgbstrip_is_active()) {
+        rgbstrip_kill();
+    }
+    else {
+        bool settings_changed = FALSE;
+        uint8_t prev_brightness = tm1637_get_brightness();
+
+        tm1637_set_brightness(7);
+        switch (ui_get_user_menu_item())
+        {
+        case ITEM_ALARMSETUP:
+            device_settings.alarm_enabled = ui_get_user_boolean();
+            if (device_settings.alarm_enabled) {
+                device_settings.alarm_time = ui_get_user_time(current_time, FALSE);
+                device_settings.dawn_duration = ui_get_user_dawn_duration();
+                dawn_setup(device_settings.alarm_time, device_settings.dawn_duration);
+                dawn_performed = FALSE;
+            }
+            settings_changed = TRUE;
+            break;
+        case ITEM_BUZZERSETUP:
+            device_settings.buzzer_enabled = ui_get_user_boolean();
+            if (device_settings.buzzer_enabled) {
+                buzzer_buzz(1, 150);
+                buzz_performed = FALSE;
+            }
+            settings_changed = TRUE;
+            break;
+        case ITEM_COLORSETUP:
+            ui_set_strip_colors_brightness();
+            break;
+        case ITEM_DISKO:
+            ui_perform_disko();
+            break;
+        case ITEM_CLOCKSETUP:
+            current_time = ui_get_user_time(current_time, TRUE);
+            rtc_set_time(current_time);
+            break;
+        case ITEM_CHARGE:
+            ui_show_charge_level();
+            break;
+        case ITEM_CANCEL:
+            break;
+        }
+        tm1637_set_brightness(prev_brightness);
+        if (settings_changed)
+            rtc_access_nvram((uint8_t *)&device_settings, sizeof(struct settings), RTC_NVRAM_SAVE);
+        // если долго копались в меню, не помешает обновить текущее время.
+        current_time = rtc_get_time();
+        update_display_brightness(current_time);
+    }
+    rtc_irq_on();
+    button_irq_on();
 }
 
 static void update_display_brightness(int16_t current_time)
