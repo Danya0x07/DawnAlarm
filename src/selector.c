@@ -11,10 +11,9 @@ static void potentiometer_update(void)
 {
     uint16_t adc_value;
 
-    ADC1->CR1 |= ADC1_CR1_ADON;
-    while (!(ADC1->CSR & ADC1_FLAG_EOC));
-    adc_value = ADC1->DRL;
-    adc_value |= ADC1->DRH << 8;
+    adc_start_conversion();
+    while (!adc_conversion_complete()) {}
+    adc_value = adc_read_value();
 
     if (adc_value > 500 && bd_max < 200)  // Небольшая корректировка значения.
         adc_value += ADC_ADJUST_SHIFT;

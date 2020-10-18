@@ -10,7 +10,6 @@
 #include "buzzer.h"
 
 /* TODO:
- *  - Измерение заряда батарейки;
  *  - Спящий режим добавить.
  */
 
@@ -74,7 +73,7 @@ int main(void)
                 rgbstrip_kill();
             }
             else {
-                bool settings_changed;
+                bool settings_changed = FALSE;
                 uint8_t prev_brightness = tm1637_get_brightness();
 
                 tm1637_set_brightness(7);
@@ -90,9 +89,6 @@ int main(void)
                     }
                     settings_changed = TRUE;
                     break;
-                case ITEM_COLORSETUP:
-                    ui_set_strip_colors_brightness();
-                    break;
                 case ITEM_BUZZERSETUP:
                     device_settings.buzzer_enabled = ui_get_user_boolean();
                     if (device_settings.buzzer_enabled) {
@@ -101,12 +97,18 @@ int main(void)
                     }
                     settings_changed = TRUE;
                     break;
+                case ITEM_COLORSETUP:
+                    ui_set_strip_colors_brightness();
+                    break;
                 case ITEM_DISKO:
                     ui_perform_disko();
                     break;
                 case ITEM_CLOCKSETUP:
                     current_time = ui_get_user_time(current_time, TRUE);
                     rtc_set_time(current_time);
+                    break;
+                case ITEM_CHARGE:
+                    ui_show_charge_level();
                     break;
                 case ITEM_CANCEL:
                     break;
@@ -169,35 +171,37 @@ static void sys_setup(void)
     EXTI->CR1 |= EXTI_SENSITIVITY_RISE_ONLY << 6;
 
     // ADC1 для считывания положения потенциометра, либо, заряда аккумулятора.
-    ADC1->CR1 |= ADC1_PRESSEL_FCPU_D12;
+    ADC1->CR1 |= ADC1_PRESSEL_FCPU_D18;
     ADC1->CR2 |= ADC1_ALIGN_RIGHT;
 
 #if (DAWNALARM_MK == 1)
     ADC1->CSR |= POTENTIOMETER_ADC_CH;
+    ADC1->TDRL = 1 << POTENTIOMETER_ADC_CH;
 #elif (DAWNALARM_MK == 2)
-    ADC1->CSR |= BATTERY_CHARGE_ADC_CH;
+    ADC1->CSR |= BATTERY_ADC_CH;
+    ADC1->TDRL = 1 << BATTERY_ADC_CH;
 #endif
 
     ADC1->CR1 |= ADC1_CR1_ADON;
 
     // TIM1 для RGB-ленты.
-    TIM1_TimeBaseInit(100, TIM1_COUNTERMODE_UP, RGB_MAX_VALUE, 0);
+    _TIM1_TimeBaseInit(100, TIM1_COUNTERMODE_UP, RGB_MAX_VALUE, 0);
 
-    TIM1_OC1Init(TIM1_OCMODE_PWM1,
+    _TIM1_OC1Init(TIM1_OCMODE_PWM1,
                  TIM1_OUTPUTSTATE_ENABLE, TIM1_OUTPUTNSTATE_DISABLE,
                  0, TIM1_OCPOLARITY_HIGH, TIM1_OCNPOLARITY_HIGH,
                  TIM1_OCIDLESTATE_RESET, TIM1_OCNIDLESTATE_RESET);
 
-    TIM1_OC2Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE,
+    _TIM1_OC2Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE,
                  TIM1_OUTPUTNSTATE_DISABLE,
                  0, TIM1_OCPOLARITY_HIGH, TIM1_OCNPOLARITY_HIGH,
                  TIM1_OCIDLESTATE_RESET, TIM1_OCNIDLESTATE_RESET);
 
-    TIM1_OC4Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE, 0,
+    _TIM1_OC4Init(TIM1_OCMODE_PWM1, TIM1_OUTPUTSTATE_ENABLE, 0,
                  TIM1_OCPOLARITY_HIGH, TIM1_OCIDLESTATE_RESET);
 
-    TIM1_CtrlPWMOutputs(ENABLE);
-    TIM1_Cmd(ENABLE);
+    TIM1->BKR |= TIM1_BKR_MOE;
+    TIM1->CR1 |= TIM1_CR1_CEN;
 
     // TIM4 для функций задержки.
     TIM4->PSCR = TIM4_PRESCALER_16;
@@ -205,8 +209,8 @@ static void sys_setup(void)
     TIM4->CR1 |= TIM4_CR1_CEN;
 
     // I2C для часов реального времени и микросхемы EEPROM.
-    I2C_Init(I2C_MAX_STANDARD_FREQ, 0x54, I2C_DUTYCYCLE_2, I2C_ACK_CURR, I2C_ADDMODE_7BIT, 2);
-    I2C_Cmd(ENABLE);
+    _I2C_Init(I2C_MAX_STANDARD_FREQ, 0x54, I2C_DUTYCYCLE_2, I2C_ACK_CURR, I2C_ADDMODE_7BIT, 2);
+    I2C->CR1 |= I2C_CR1_PE;
 
     enableInterrupts();
 }

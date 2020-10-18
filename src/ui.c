@@ -2,7 +2,7 @@
 #include "button.h"
 #include "selector.h"
 #include "tm1637.h"
-#include "config.h"
+#include "battery.h"
 
 static int8_t parse_number_into_tm16_digits(int16_t number, uint8_t radix, uint8_t *digits)
 {
@@ -96,10 +96,11 @@ static void cb_get_menu_item(int16_t item, void *unused)
 {
     static const uint8_t menu[ITEMS_TOTAL][4] = {
         {TM16_A, TM16_L, TM16_A, TM16_r},
-        {TM16_CLEAR, TM16_C, TM16_0, TM16_L},
         {TM16_b, TM16_E, TM16_E, TM16_P},
+        {TM16_CLEAR, TM16_C, TM16_0, TM16_L},
         {TM16_d, TM16_I, TM16_C, TM16_0},
         {TM16_C, TM16_L, TM16_0, TM16_C},
+        {TM16_C, TM16_h, TM16_A, TM16_r},
         {TM16_0, TM16_E, TM16_H, TM16_A}
     };
     tm1637_display_content(menu[item]);
@@ -168,6 +169,15 @@ void ui_show_splash_screen(void)
 enum menu_item ui_get_user_menu_item(void)
 {
     return get_user_value(0, ITEMS_TOTAL - 1, 0, cb_get_menu_item, NULL);
+}
+
+void ui_show_charge_level(void)
+{
+    tm1637_display_dec(battery_get_charge(), FALSE);
+    while (button_is_pressed()) {
+        tm1637_display_dec(battery_get_charge(), FALSE);
+        delay_ms(500);
+    }
 }
 
 uint16_t ui_get_user_time(uint16_t current_time, bool dots)

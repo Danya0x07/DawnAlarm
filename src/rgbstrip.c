@@ -16,3 +16,8 @@ void rgbstrip_kill(void)
     rgbstrip_set_G(0);
     rgbstrip_set_B(0);
 }
+
+bool rgbstrip_is_active(void)
+{
+    return _TIM1_GetCapture1() || _TIM1_GetCapture2() || _TIM1_GetCapture4();
+}

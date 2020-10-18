@@ -46,7 +46,7 @@
     #define BUZZER_GPORT GPIOC
     #define BUZZER_GPIN  GPIO_PIN_5
 
-    #define BATTERY_CHARGE_ADC_CH   ADC1_CHANNEL_3
+    #define BATTERY_ADC_CH   ADC1_CHANNEL_3
 #endif  // DAWNALARM_MK == 2
 
 #endif  /* _CONFIG_H */
