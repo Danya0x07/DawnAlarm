@@ -97,6 +97,7 @@ static void cb_get_menu_item(int16_t item, void *unused)
     static const uint8_t menu[ITEMS_TOTAL][4] = {
         {TM16_A, TM16_L, TM16_A, TM16_r},
         {TM16_CLEAR, TM16_C, TM16_0, TM16_L},
+        {TM16_b, TM16_E, TM16_E, TM16_P},
         {TM16_d, TM16_I, TM16_C, TM16_0},
         {TM16_C, TM16_L, TM16_0, TM16_C},
         {TM16_0, TM16_E, TM16_H, TM16_A}

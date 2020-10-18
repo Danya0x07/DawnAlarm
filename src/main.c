@@ -7,10 +7,10 @@
 #include "dawn.h"
 #include "rgbstrip.h"
 #include "ui.h"
+#include "buzzer.h"
 
 /* TODO:
  *  - Измерение заряда батарейки;
- *  - Возможность включать/выключать пищалку;
  *  - Спящий режим добавить.
  */
 
@@ -18,6 +18,7 @@ static struct settings {
     uint16_t alarm_time;     // время полного рассвета
     uint8_t  dawn_duration;  // длительность рассвета (в минутах)
     bool alarm_enabled;      // включён ли вообще будильник или работаем просто как часы
+    bool buzzer_enabled;     // пищать ли буззером при окончании рассвета
 } device_settings;
 
 /* Самая минималистичная реализация чего-то вроде планировщика задач.
@@ -30,8 +31,9 @@ static struct {
     todothing_t update_dawn;
 } todotable;
 
-static bool dawn_performed;
 static int16_t current_time;
+static bool dawn_performed;
+static bool buzz_performed;
 
 static void sys_setup(void);
 static void update_time_and_display(void);
@@ -58,9 +60,13 @@ int main(void)
         if (button_pressed()) {
             rtc_irq_off();
 
-            if (device_settings.alarm_enabled && 
-                    !dawn_performed && dawn_is_ongoing(current_time)) {
-                dawn_performed = TRUE;
+            if (!buzz_performed && buzzer_is_on()) {
+                buzzer_off();
+                buzz_performed = TRUE;
+            }
+            else if (device_settings.alarm_enabled && !dawn_performed && 
+                    dawn_is_ongoing(current_time)) {
+                buzz_performed = dawn_performed = TRUE;
                 todotable.update_dawn = 0;
                 rgbstrip_kill();
             } 
@@ -68,6 +74,7 @@ int main(void)
                 rgbstrip_kill();
             }
             else {
+                bool settings_changed;
                 uint8_t prev_brightness = tm1637_get_brightness();
 
                 tm1637_set_brightness(7);
@@ -81,10 +88,18 @@ int main(void)
                         dawn_setup(device_settings.alarm_time, device_settings.dawn_duration);
                         dawn_performed = FALSE;
                     }
-                    rtc_access_nvram((uint8_t *)&device_settings, sizeof(struct settings), RTC_NVRAM_SAVE);
+                    settings_changed = TRUE;
                     break;
                 case ITEM_COLORSETUP:
                     ui_set_strip_colors_brightness();
+                    break;
+                case ITEM_BUZZERSETUP:
+                    device_settings.buzzer_enabled = ui_get_user_boolean();
+                    if (device_settings.buzzer_enabled) {
+                        buzzer_buzz(1, 150);
+                        buzz_performed = FALSE;
+                    }
+                    settings_changed = TRUE;
                     break;
                 case ITEM_DISKO:
                     ui_perform_disko();
@@ -97,6 +112,8 @@ int main(void)
                     break;
                 }
                 tm1637_set_brightness(prev_brightness);
+                if (settings_changed)
+                    rtc_access_nvram((uint8_t *)&device_settings, sizeof(struct settings), RTC_NVRAM_SAVE);
                 // если долго копались в меню, не помешает обновить текущее время.
                 current_time = rtc_get_time();
                 update_display_brightness(current_time);
@@ -217,7 +234,7 @@ static inline void handle_day_transition(int16_t current_time)
     static int16_t prev_time = 0;
 
     if (current_time < prev_time) {  // наступил следующий день
-        dawn_performed = FALSE;
+        buzz_performed = dawn_performed = FALSE;
     }
     prev_time = current_time;
 }
@@ -228,11 +245,16 @@ static void update_time_and_display(void)
     static bool dots = FALSE;
     
     update_display_brightness(current_time);
-    if (++counter >> 1 > 10) {  // Раз в 10 секунд обновляем состояние логики будильника.
+    if (++counter > 10) {  // Раз в 5 секунд обновляем состояние логики будильника.
         current_time = rtc_get_time();
         handle_day_transition(current_time);
-        if (device_settings.alarm_enabled && !dawn_performed)
+        if (device_settings.alarm_enabled && !dawn_performed) {
             todotable.update_dawn = 1;
+            if (device_settings.buzzer_enabled && 
+                    current_time == device_settings.alarm_time &&
+                    !buzzer_is_on())
+                buzzer_on();
+        }
         counter = 0;
     }
     tm1637_display_dec(current_time, dots = !dots);
