@@ -46,11 +46,16 @@ INTERRUPT_HANDLER(encoder_irq, ITC_IRQ_PORTD)
 
 void selector_set(int16_t _min, int16_t _max, int16_t _current)
 {
-    selector_irq_off();
+    bool irq_on = selector_irq_is_on();
+
+    if (irq_on)
+        selector_irq_off();
     bd_min = _min;
     bd_max = _max;
     current = _current;
-    selector_irq_on();
+    
+    if (irq_on)
+        selector_irq_on();
 }
 
 int16_t selector_get(void)

@@ -4,6 +4,16 @@
 #include "tm1637.h"
 #include "battery.h"
 
+static const uint8_t menu[ITEMS_TOTAL][4] = {
+    {TM16_A, TM16_L, TM16_A, TM16_r},
+    {TM16_b, TM16_E, TM16_E, TM16_P},
+    {TM16_CLEAR, TM16_C, TM16_0, TM16_L},
+    {TM16_d, TM16_I, TM16_C, TM16_0},
+    {TM16_C, TM16_L, TM16_0, TM16_C},
+    {TM16_C, TM16_h, TM16_A, TM16_r},
+    {TM16_0, TM16_E, TM16_H, TM16_A}
+};
+
 static int8_t parse_number_into_tm16_digits(int16_t number, uint8_t radix, uint8_t *digits)
 {
     int16_t i;
@@ -94,15 +104,6 @@ static int16_t get_user_value(int16_t val_min, int16_t val_max, int16_t val_init
 
 static void cb_get_menu_item(int16_t item, void *unused)
 {
-    static const uint8_t menu[ITEMS_TOTAL][4] = {
-        {TM16_A, TM16_L, TM16_A, TM16_r},
-        {TM16_b, TM16_E, TM16_E, TM16_P},
-        {TM16_CLEAR, TM16_C, TM16_0, TM16_L},
-        {TM16_d, TM16_I, TM16_C, TM16_0},
-        {TM16_C, TM16_L, TM16_0, TM16_C},
-        {TM16_C, TM16_h, TM16_A, TM16_r},
-        {TM16_0, TM16_E, TM16_H, TM16_A}
-    };
     tm1637_display_content(menu[item]);
 }
 
@@ -198,6 +199,16 @@ uint8_t ui_get_user_dawn_duration(void)
     uint8_t dd;
     get_user_value(1, 7, 4, cb_get_user_dd, &dd);
     return dd;
+}
+
+bool ui_get_user_buzzer_status(void)
+{
+    selector_set(0, 2, 1);
+    tm1637_display_content(menu[ITEM_BUZZERSETUP]);
+    selector_irq_on();
+    while (selector_get() == 1)
+        delay_ms(10);
+    return get_user_value(0, 1, 0, cb_get_user_boolean, NULL);
 }
 
 void ui_set_strip_colors_brightness(void)

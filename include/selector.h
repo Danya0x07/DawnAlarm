@@ -16,6 +16,7 @@ int16_t selector_get(void);
 
 #define selector_irq_off()   (ENCODER_GPORT->CR2 &= ~ENCODER_CHA_GPIN)
 #define selector_irq_on()    (ENCODER_GPORT->CR2 |= ENCODER_CHA_GPIN)
+#define selector_irq_is_on() (!!(ENCODER_GPORT->CR2 & ENCODER_CHA_GPIN))
 
 INTERRUPT_HANDLER(encoder_irq, ITC_IRQ_PORTD);
 #endif

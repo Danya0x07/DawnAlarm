@@ -195,6 +195,9 @@ static void handle_button_press(void)
             if (device_settings.alarm_enabled) {
                 device_settings.alarm_time = ui_get_user_time(current_time, FALSE);
                 device_settings.dawn_duration = ui_get_user_dawn_duration();
+                device_settings.buzzer_enabled = ui_get_user_buzzer_status();
+                if (device_settings.buzzer_enabled)
+                    buzz_performed = FALSE;
                 dawn_setup(device_settings.alarm_time, device_settings.dawn_duration);
                 dawn_performed = FALSE;
             }
