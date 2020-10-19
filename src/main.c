@@ -299,7 +299,7 @@ static void update_time_and_display(void)
 #if (DAWNALARM_MK == 2)
             if (device_settings.buzzer_enabled && 
                     current_time == device_settings.alarm_time &&
-                    !buzzer_is_on())
+                    !buzzer_is_on() && !buzz_performed)
                 buzzer_on();
 #endif
         }
