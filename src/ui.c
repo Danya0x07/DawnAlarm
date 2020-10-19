@@ -7,13 +7,13 @@
 
 static const uint8_t menu[ITEMS_TOTAL][4] = {
     {TM16_A, TM16_L, TM16_A, TM16_r},
-#if (DAWNALARM == 2)
+#if (DAWNALARM_MK == 2)
     {TM16_b, TM16_E, TM16_E, TM16_P},
 #endif
     {TM16_CLEAR, TM16_C, TM16_0, TM16_L},
     {TM16_d, TM16_I, TM16_C, TM16_0},
     {TM16_C, TM16_L, TM16_0, TM16_C},
-#if (DAWNALARM == 2)
+#if (DAWNALARM_MK == 2)
     {TM16_C, TM16_h, TM16_A, TM16_r},
 #endif
     {TM16_0, TM16_E, TM16_H, TM16_A}
