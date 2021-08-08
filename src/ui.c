@@ -9,6 +9,7 @@ static const uint8_t menu[ITEMS_TOTAL][4] = {
     {TM16_A, TM16_L, TM16_A, TM16_r},
 #if (DAWNALARM_MK == 2)
     {TM16_b, TM16_E, TM16_E, TM16_P},
+    {TM16_C, TM16_0, TM16_n, TM16_F},
 #endif
     {TM16_CLEAR, TM16_C, TM16_0, TM16_L},
     {TM16_d, TM16_I, TM16_C, TM16_0},
@@ -274,5 +275,25 @@ bool ui_get_user_buzzer_status(void)
     while (selector_get() == 1)
         delay_ms(10);
     return get_user_value(0, 1, 0, cb_get_user_boolean, NULL);
+}
+
+void ui_show_configuration(uint16_t alarm_time, uint8_t dawn_duration, bool buzzer_enabled)
+{
+    static const uint8_t caption[4] = {TM16_CLEAR, TM16_CLEAR, TM16_0, TM16_0};
+    while (button_is_pressed()) {
+        tm1637_display_dec(alarm_time, buzzer_enabled);
+        delay_ms(1000);
+        display_value_with_caption(caption, dawn_duration, 10, dawn_duration > 9 ? 2 : 3);
+        delay_ms(1000);
+    }
+    delay_ms(500);
+}
+
+void ui_show_thereis_noconf(void)
+{
+    static uint8_t imperturbable_face[4] = {TM16_MINUS, TM16_UNDER, TM16_UNDER, TM16_MINUS};
+    tm1637_display_content(imperturbable_face);
+    while (button_is_pressed()) {}
+    delay_ms(500);
 }
 #endif

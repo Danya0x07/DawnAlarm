@@ -8,6 +8,7 @@ enum menu_item {
     ITEM_ALARMSETUP,
 #if (DAWNALARM_MK == 2)
     ITEM_BUZZERSETUP,
+    ITEM_SHOWCONF,
 #endif
     ITEM_COLORSETUP,
     ITEM_DISKO,
@@ -32,6 +33,8 @@ void ui_perform_disko(void);
 void ui_show_battery_level_low(void);
 void ui_show_charge_level(void);
 bool ui_get_user_buzzer_status(void);
+void ui_show_configuration(uint16_t alarm_time, uint8_t dawn_duration, bool buzzer_enabled);
+void ui_show_thereis_noconf(void);
 #endif
 
 #endif  // _UI_H

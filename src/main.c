@@ -232,6 +232,17 @@ static void handle_button_press(void)
             }
             settings_changed = TRUE;
             break;
+
+        case ITEM_SHOWCONF:
+            if (device_settings.alarm_enabled) {
+                ui_show_configuration(device_settings.alarm_time, 
+                                      device_settings.dawn_duration, 
+                                      device_settings.buzzer_enabled);
+            }
+            else {
+                ui_show_thereis_noconf();
+            }
+            break;
 #endif
         case ITEM_COLORSETUP:
             ui_set_strip_colors_brightness();
