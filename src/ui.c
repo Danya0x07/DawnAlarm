@@ -254,7 +254,6 @@ void ui_show_battery_level_low(void)
 {
     static const uint8_t msg[4] = {TM16_b, TM16_A, TM16_L, TM16_o};
     tm1637_display_content(msg);
-    buzzer_buzz(3, 500);
     delay_ms(800);
 }
 
