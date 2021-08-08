@@ -3,9 +3,8 @@
 
 #ifdef UNIT_TEST
 #   include <stdint.h>
-#   define rgbstrip_set_R(x)
-#   define rgbstrip_set_G(x)
-#   define rgbstrip_set_B(x)
+#   include <stdbool.h>
+#   define rgbstrip_set(a, b)
 #else
 #   include "halutils.h"
 #   define rgbstrip_set_R(x) _TIM1_SetCompare2(x)
